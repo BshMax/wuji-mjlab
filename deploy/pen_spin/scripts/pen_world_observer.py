@@ -307,6 +307,8 @@ def main() -> int:
                   help="maximum detection rate in --detect-only mode; capture FPS is configured separately")
   ap.add_argument("--stereo", action="store_true",
                   help="paired IR1+IR2 sheet detection, side-by-side display and miss statistics")
+  ap.add_argument("--detector-profile", choices=("baseline", "corners", "ecc1", "tracked"),
+                  default="baseline", help="opt-in sheet algorithm ablation; never changes real-pen PnP")
   ap.add_argument("--sheet", choices=('pen', 'wrist', 'unknown'), default='pen',
                   help="stereo reference: pen=108 codes, wrist=12 ID0 tags, unknown=no miss denominator")
   ap.add_argument("--exposure-us", type=float,
@@ -323,6 +325,8 @@ def main() -> int:
   ap.add_argument("--measure", action="store_true",
                   help="start stereo miss statistics immediately; otherwise press s when the sheet is ready")
   args = ap.parse_args()
+  if args.detector_profile != 'baseline' and not args.stereo:
+    ap.error('--detector-profile experiments require --stereo --detect-only')
   if args.stereo and (args.source != 'realsense' or not args.detect_only):
     ap.error('--stereo requires --source realsense --detect-only')
   if args.detect_hz is not None:

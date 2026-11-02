@@ -117,7 +117,8 @@ def _panel(gray, detections, tracker, side, trails, stats, track_labels=False):
 
 
 def _serialize(detections):
-    return [dict(family=d.family, id=d.marker_id, track=d.track_id,
+    return [dict(family=d.family, id=d.marker_id, track=d.track_id, source=d.source, corrected_bits=d.corrected_bits,
+                 decode_distance=d.decode_distance,
                  center_px=d.center.tolist(), corners_px=d.corners.tolist(), size_px=d.size_px)
             for d in detections]
 
@@ -138,6 +139,10 @@ def run_stereo_preview(args, frames, pen_estimator, camera, diagnostics=None):
     from lib.pen_pose import PenPoseEstimator
     detectors = [TagSheetDetector(pen_estimator), TagSheetDetector(PenPoseEstimator(
         camera.right_K, camera.right_dist, layout=pen_estimator.layout))]
+    profile = getattr(args, 'detector_profile', 'baseline')
+    if profile != 'baseline':
+        from lib.sheet_experiments import ExperimentalSheetDetector
+        detectors = [ExperimentalSheetDetector(detector.pen, profile) for detector in detectors]
     trackers = [TagTracker(), TagTracker()]
     stats = SheetMissStats(args.sheet, getattr(args, 'measure', False))
     title = 'stereo tag sheet test'
@@ -163,14 +168,14 @@ def run_stereo_preview(args, frames, pen_estimator, camera, diagnostics=None):
             now = time.monotonic()
             for tracker, found in zip(trackers, detections, strict=True):
                 tracker.update(found, now)
-            latest = stats.update(*detections)
+            latest = stats.update(*[[d for d in found if d.verified] for found in detections])
             processing.append((time.perf_counter()-before)*1000)
             times.append(now)
             fps = (len(times)-1)/(times[-1]-times[0]) if times[-1] > times[0] else 0.
             count += 1
             if diagnostics is not None:
                 diagnostics.write(json.dumps(dict(
-                    mode='stereo-detection', source=args.source, t_monotonic_s=now,
+                    mode='stereo-detection', source=args.source, detector_profile=profile, t_monotonic_s=now,
                     processing_ms=processing[-1], frame_number=camera.frame_number,
                     sync_delta_ms=camera.sync_delta_ms, capture_fps=camera.capture_fps,
                     actual_exposure_us=camera.actual_exposure_us,
@@ -183,7 +188,7 @@ def run_stereo_preview(args, frames, pen_estimator, camera, diagnostics=None):
                               (left, right), detections, trackers, ('left', 'right'), strict=True)]
                 vis = np.hstack(panels)
                 status = 'MEASURING' if stats.measuring else 'PAUSED: s starts measurement'
-                lines = [f'{args.sheet.upper()} sheet | {status} | paired {fps:.1f}/{target_hz:g} Hz | '
+                lines = [f'{args.sheet.upper()} / {profile} | {status} | paired {fps:.1f}/{target_hz:g} Hz | '
                          f'detect median={np.median(processing):.1f}ms | sync={camera.sync_delta_ms:g}ms',
                          's start/reset | p pause | 1 wrist12 | 2 pen108 | 0 unknown | '
                          'r reset | t trails | i labels | +/- exposure | q quit', camera.status()]

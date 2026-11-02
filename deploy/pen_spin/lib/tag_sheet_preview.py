@@ -26,6 +26,7 @@ class TagDetection:
     source: str = 'decoded'
     corrected_bits: int = 0
     decode_distance: int | None = None
+    quality: dict | None = None
 
     @property
     def verified(self):

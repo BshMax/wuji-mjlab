@@ -161,13 +161,15 @@ class PenPoseEstimator:
         self.rejected_appearance = 0
         self.last_inlier_indices: tuple[int, ...] = ()
         self._missed = 0
+        self.collect_rejected = False
+        self.last_rejected_quads = []
 
     def detect(self, gray: np.ndarray, roi=None):
         """Return tags in ROI, with corner coordinates in the original frame."""
         x, y, width, height = roi if roi is not None else (0, 0, gray.shape[1], gray.shape[0])
         image = np.ascontiguousarray(gray[y:y + height, x:x + width])
         try:
-            corners, ids, _ = self._detector.detectMarkers(image)
+            corners, ids, rejected = self._detector.detectMarkers(image)
         except cv2.error as exc:
             # OpenCV 5 contour refinement can assert on a degenerate edge.
             # Retry only that failure and only this frame; all border, ID,
@@ -176,7 +178,9 @@ class PenPoseEstimator:
                     or "nContours.size() >= 2" not in str(exc)):
                 raise
             self.contour_fallbacks += 1
-            corners, ids, _ = self._contour_fallback.detectMarkers(image)
+            corners, ids, rejected = self._contour_fallback.detectMarkers(image)
+        self.last_rejected_quads = ([quad[0].astype(np.float64) + np.array([x, y])
+                                     for quad in rejected] if self.collect_rejected else [])
         if ids is None:
             return [], []
         keep_ids, keep_px = [], []
