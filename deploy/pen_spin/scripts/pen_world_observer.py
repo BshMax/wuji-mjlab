@@ -305,6 +305,10 @@ def main() -> int:
                   help="whole-sheet detection and 2D tracks; no wrist calibration or pose publication")
   ap.add_argument("--detect-hz", type=float,
                   help="maximum detection rate in --detect-only mode; capture FPS is configured separately")
+  ap.add_argument("--stereo", action="store_true",
+                  help="paired IR1+IR2 sheet detection, side-by-side display and miss statistics")
+  ap.add_argument("--sheet", choices=('pen', 'wrist', 'unknown'), default='pen',
+                  help="stereo reference: pen=108 codes, wrist=12 ID0 tags, unknown=no miss denominator")
   ap.add_argument("--exposure-us", type=float,
                   help="Camera exposure time in microseconds for this run only; defaults to the source camera YAML")
   ap.add_argument("--tag-layout", help="pen tag JSON; default: config/pen_tags.json (1x2, 250 mm)")
@@ -316,7 +320,11 @@ def main() -> int:
   ap.add_argument("--no-world-tag", action="store_true",
                   help="publish in the CAMERA frame; the policy side expects "
                        "the wrist-tag frame, so this is for bench work only")
+  ap.add_argument("--measure", action="store_true",
+                  help="start stereo miss statistics immediately; otherwise press s when the sheet is ready")
   args = ap.parse_args()
+  if args.stereo and (args.source != 'realsense' or not args.detect_only):
+    ap.error('--stereo requires --source realsense --detect-only')
   if args.detect_hz is not None:
     if not np.isfinite(args.detect_hz) or args.detect_hz <= 0:
       ap.error("--detect-hz must be finite and positive")
@@ -343,7 +351,7 @@ def main() -> int:
     camera = None
     if args.source == "realsense":
       from lib.realsense_camera import RealSenseCamera
-      camera = resources.enter_context(RealSenseCamera(cfg, serial=args.camera_serial))
+      camera = resources.enter_context(RealSenseCamera(cfg, serial=args.camera_serial, stereo=args.stereo))
       cfg = camera.cfg
     return _run_observer(args, cfg, config_file, camera, diagnostics)
 
@@ -360,6 +368,10 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None):
              else (get_camera_matrix(cfg), get_dist_coeffs(cfg)))
   est = PenPoseEstimator(K, dist, layout=PenTagLayout(args.tag_layout), min_tags=2)
   if args.detect_only:
+    if getattr(args, 'stereo', False):
+      from lib.stereo_tag_preview import run_stereo_preview
+      frames = _source_frames(args, cfg, K, dist, est.layout, camera)
+      return run_stereo_preview(args, frames, est, camera, diagnostics)
     from lib.tag_sheet_preview import run_detection_preview
     frames = _source_frames(args, cfg, K, dist, est.layout, camera)
     return run_detection_preview(args, frames, est, camera, diagnostics)

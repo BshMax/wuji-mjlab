@@ -12,6 +12,28 @@ import numpy as np
 
 def summarize(path, *, stationary=False):
     records = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    if records and records[0].get('mode') == 'stereo-detection':
+        duration = records[-1]['t_monotonic_s'] - records[0]['t_monotonic_s']
+        rate = (len(records)-1)/duration if duration > 0 else 0.
+        print(f'Stereo sheet detection: {len(records)} paired frames, {rate:.1f} Hz; no 3D pose')
+        p50, p95 = np.percentile([r['processing_ms'] for r in records], [50, 95])
+        print(f'Both-view detection and tracking: p50={p50:.2f} ms, p95={p95:.2f} ms')
+        print(f"Maximum recorded stereo time difference: {max(r['sync_delta_ms'] for r in records):.3f} ms")
+        epochs = {}
+        for record in records:
+            epochs[record['stats']['epoch']] = record['stats']
+        for epoch, stats in epochs.items():
+            print(f"Measurement {epoch}: {stats['sheet']} sheet, {stats['frames']} measured pairs")
+            for side, view in stats['views'].items():
+                rate = '--' if view['miss_rate'] is None else f"{view['miss_rate']:.1%}"
+                print(f"  {side}: missing={view['miss_total']}/{view['opportunities']} ({rate}); "
+                      f"last APR={view['april']} PEN={view['pen']}")
+                missing = {key: value for key, value in view['miss_total_by_id'].items() if value}
+                if missing:
+                    print(f'    Missing opportunities per family/ID: {missing}')
+        print('Counts assume the selected entire sheet is visible in BOTH views; '
+              'repeated IDs do not establish exact stereo instance matches.')
+        return
     if records and records[0].get('mode') == 'detection-only':
         duration = records[-1]['t_monotonic_s'] - records[0]['t_monotonic_s']
         rate = (len(records)-1) / duration if duration > 0 else 0.

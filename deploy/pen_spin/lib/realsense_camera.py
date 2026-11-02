@@ -32,10 +32,14 @@ def opencv_intrinsics(intr, rs):
 class RealSenseCamera:
     """Context-managed live capture. Starting/stopping never touches the hand."""
 
-    def __init__(self, cfg, *, serial=None, rs_module=None):
+    def __init__(self, cfg, *, serial=None, rs_module=None, stereo=False):
         self.cfg = copy.deepcopy(cfg)
         self.serial = serial or self.cfg['realsense'].get('serial')
         self.rs = rs_module
+        self.stereo = stereo
+        self.sync_skips = 0
+        self.sync_delta_ms = None
+        self.frame_number = None
         self.pipeline = None
         self.capture_fps = None
         self.actual_exposure_us = None
@@ -66,6 +70,8 @@ class RealSenseCamera:
         config = rs.config()
         config.enable_device(self.serial)
         config.enable_stream(rs.stream.infrared, 1, width, height, rs.format.y8, fps)
+        if self.stereo:
+            config.enable_stream(rs.stream.infrared, 2, width, height, rs.format.y8, fps)
         pipeline = rs.pipeline()
         try:
             profile = pipeline.start(config)
@@ -80,6 +86,15 @@ class RealSenseCamera:
                 raise ValueError("RealSense did not activate the requested IR1 Y8 profile")
             intr = active.get_intrinsics()
             self.K, self.dist = opencv_intrinsics(intr, rs)
+            if self.stereo:
+                right = profile.get_stream(rs.stream.infrared, 2).as_video_stream_profile()
+                if (right.width(), right.height(), right.fps(), right.format()) != (
+                        width, height, fps, rs.format.y8):
+                    raise ValueError("RealSense did not activate the requested IR2 Y8 profile")
+                self.right_K, self.right_dist = opencv_intrinsics(right.get_intrinsics(), rs)
+                self.left_to_right = active.get_extrinsics_to(right)
+                print(f'[RealSense] stereo IR1+IR2; baseline='
+                      f'{np.linalg.norm(self.left_to_right.translation)*1000:.2f}mm')
             # All controls below belong to the stereo sensor, not the RGB sensor.
             sensor = device.first_depth_sensor()
             self.sensor = sensor
@@ -119,7 +134,7 @@ class RealSenseCamera:
 
     def frames(self):
         rs = self.rs
-        misses = 0
+        misses = sync_misses = 0
         while True:
             try:
                 frames = self.pipeline.wait_for_frames(500)
@@ -139,6 +154,21 @@ class RealSenseCamera:
             if not ir:
                 raise RuntimeError("RealSense frameset is missing the requested IR1 image")
             number, timestamp = ir.get_frame_number(), ir.get_timestamp()
+            right = None
+            if self.stereo:
+                right = frames.get_infrared_frame(2)
+                if not right:
+                    raise RuntimeError('RealSense frameset is missing the requested IR2 image')
+                self.sync_delta_ms = abs(right.get_timestamp() - timestamp)
+                if (right.get_frame_timestamp_domain() != ir.get_frame_timestamp_domain()
+                        or right.get_frame_number() != number or self.sync_delta_ms > 1.):
+                    self.sync_skips += 1
+                    sync_misses += 1
+                    if sync_misses >= 20:
+                        raise RuntimeError('RealSense stereo frames are not synchronized; restart capture')
+                    continue  # never compare detections from different exposures
+            sync_misses = 0
+            self.frame_number = number
             if self._last_number is not None:
                 self.skipped_frames += max(0, number - self._last_number - 1)
             self._last_number = number
@@ -149,7 +179,8 @@ class RealSenseCamera:
                 self.capture_fps = 1000 * (number - first_number) / elapsed
             if ir.supports_frame_metadata(rs.frame_metadata_value.actual_exposure):
                 self.actual_exposure_us = ir.get_frame_metadata(rs.frame_metadata_value.actual_exposure)
-            yield np.asanyarray(ir.get_data()).copy(), None
+            yield (np.asanyarray(ir.get_data()).copy(),
+                   None if right is None else np.asanyarray(right.get_data()).copy())
 
     def status(self):
         fps = '--' if self.capture_fps is None else f'{self.capture_fps:.1f}'

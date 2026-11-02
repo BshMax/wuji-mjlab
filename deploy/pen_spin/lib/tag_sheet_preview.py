@@ -11,6 +11,7 @@ import json
 import time
 from collections import deque
 from dataclasses import dataclass, field
+from functools import cached_property
 
 import cv2
 import numpy as np
@@ -23,11 +24,11 @@ class TagDetection:
     corners: np.ndarray
     track_id: int = 0
 
-    @property
+    @cached_property
     def center(self):
         return self.corners.mean(axis=0)
 
-    @property
+    @cached_property
     def size_px(self):
         return float(np.linalg.norm(np.roll(self.corners, -1, axis=0) - self.corners,
                                     axis=1).mean())
@@ -51,12 +52,13 @@ class TagTracker:
     def update(self, detections, now):
         self.tracks = {tid: track for tid, track in self.tracks.items()
                        if now - track.last_seen <= self.max_age_s}
+        by_marker = {}
+        for tid, track in self.tracks.items():
+            old = track.detection
+            by_marker.setdefault((old.family, old.marker_id), []).append((tid, old))
         candidates = []
         for index, detection in enumerate(detections):
-            for tid, track in self.tracks.items():
-                old = track.detection
-                if (old.family, old.marker_id) != (detection.family, detection.marker_id):
-                    continue
+            for tid, old in by_marker.get((detection.family, detection.marker_id), ()):
                 distance = float(np.linalg.norm(detection.center - old.center))
                 if distance <= max(30., 2 * max(old.size_px, detection.size_px)):
                     candidates.append((distance, index, tid))

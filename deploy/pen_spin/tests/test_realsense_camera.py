@@ -148,3 +148,41 @@ def test_preview_exposure_is_capped_by_frame_period_without_changing_config(rig)
         value = camera.adjust_exposure(100)
         assert 11110 <= value <= 1e6 / 90
         assert rig.cfg['capture']['exposure_time'] == 1000
+
+
+def test_stereo_initializes_both_profiles_and_calibrations(rig):
+    rig.camera.stereo = True
+    rig.active.get_extrinsics_to.return_value = SimpleNamespace(translation=[-.05, 0, 0])
+    with rig.camera as camera:
+        assert rig.rs.config.return_value.enable_stream.call_count == 2
+        np.testing.assert_allclose(camera.right_K, camera.K)
+        assert camera.left_to_right.translation == [-.05, 0, 0]
+    rig.pipeline.stop.assert_called_once()
+
+
+def test_stereo_skips_unmatched_frames_instead_of_comparing_different_times():
+    rs = SimpleNamespace(frame_metadata_value=SimpleNamespace(actual_exposure=1))
+    camera = RealSenseCamera({'realsense': {}}, stereo=True, rs_module=rs)
+    camera.pipeline = Mock()
+
+    def frame(number, timestamp, value):
+        result = Mock()
+        result.get_frame_number.return_value = number
+        result.get_timestamp.return_value = timestamp
+        result.get_frame_timestamp_domain.return_value = 'hardware_clock'
+        result.get_frame_metadata.return_value = 5000
+        result.get_data.return_value = np.full((80, 80), value, np.uint8)
+        return result
+
+    bad = Mock()
+    bad.get_infrared_frame.side_effect = [frame(1, 100, 1), frame(2, 116, 2)]
+    good = Mock()
+    good.get_infrared_frame.side_effect = [frame(3, 133, 3), frame(3, 133, 4)]
+    camera.pipeline.wait_for_frames.side_effect = [bad, good]
+    camera.pipeline.poll_for_frames.return_value = False
+    stream = camera.frames()
+    left, right = next(stream)
+    assert camera.sync_skips == 1 and camera.frame_number == 3
+    assert camera.sync_delta_ms == 0
+    assert left[0, 0] == 3 and right[0, 0] == 4
+    stream.close()

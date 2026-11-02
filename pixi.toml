@@ -95,3 +95,5 @@ pen-observer-realsense = { cmd = "python deploy/pen_spin/scripts/pen_world_obser
 pen-tag-test = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --source realsense --detect-only --preview", description = "Full-sheet AprilTag and custom pen detection with 2D tracks; no pose solve or publication" }
 
 pen-tag-test-50 = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --source realsense --detect-only --preview --detect-hz 50 --camera-config deploy/pen_spin/config/realsense_sheet_50.yaml", description = "A4 detection at up to 50 Hz with 848x480 IR1 capture at 60 FPS" }
+
+pen-tag-test-stereo = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --source realsense --detect-only --stereo --preview --detect-hz 50 --camera-config deploy/pen_spin/config/realsense_sheet_50.yaml", description = "Paired left/right IR A4 detection and tracking at up to 50 Hz with per-view miss statistics" }
