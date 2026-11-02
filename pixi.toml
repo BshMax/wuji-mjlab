@@ -96,4 +96,5 @@ pen-tag-test = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --s
 
 pen-tag-test-50 = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --source realsense --detect-only --preview --detect-hz 50 --camera-config deploy/pen_spin/config/realsense_sheet_50.yaml", description = "A4 detection at up to 50 Hz with 848x480 IR1 capture at 60 FPS" }
 
-pen-tag-test-stereo = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --source realsense --detect-only --stereo --preview --detect-hz 50 --camera-config deploy/pen_spin/config/realsense_sheet_50.yaml", description = "Paired left/right IR A4 detection and tracking at up to 50 Hz with per-view miss statistics" }
+pen-tag-test-stereo = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --source realsense --detect-only --stereo --preview --detect-hz 30 --camera-config deploy/pen_spin/config/realsense_sheet_max.yaml", description = "Highest-resolution paired IR sheet test: 1280x800 per view at up to 30 Hz" }
+pen-tag-test-stereo-50 = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --source realsense --detect-only --stereo --preview --detect-hz 50 --camera-config deploy/pen_spin/config/realsense_sheet_50.yaml", description = "Paired IR comparison profile: 848x480 at up to 50 detection Hz" }

@@ -134,7 +134,7 @@ The wrist sheet has 12 instances of ID 0; the pen sheet has 108 instances of 18 
 
 ### Paired left/right infrared sheet test
 
-Run `pixi run -e pen-spin-deploy pen-tag-test-stereo`: both IR streams capture 848×480 at 60 FPS, with paired detection limited to 50 Hz. Both views have independent detections/tracks. Frames must share a frame number and timestamp domain, with at most 1 ms timestamp difference. The stereo sensor exposure controls affect both views. This mode does not solve or publish a pen pose.
+Run `pixi run -e pen-spin-deploy pen-tag-test-stereo`: both IR streams capture 1280×800 at 30 FPS, with paired detection limited to 30 Hz (1,024,000 pixels per view). For the previous 848×480 / 60 FPS capture and 50 Hz detection comparison, use `pen-tag-test-stereo-50`. Both views have independent detections/tracks. Frames must share a frame number and timestamp domain, with at most 1 ms timestamp difference. The stereo sensor exposure controls affect both views. This mode does not solve or publish a pen pose.
 
 The default reference is the 108-code pen sheet (six instances of every ID 0–17). Press `1` for the 12-marker wrist sheet, `2` for the pen sheet, or `0` for unknown counts. Place the entire selected sheet in BOTH views and press `s` to reset/start measurement. `p` pauses, changing reference resets/pauses, `r` resets stats/tracks while preserving the measurement state, `t` toggles trails, `i` toggles detailed track labels, `+`/`-` adjust shared exposure, and `q`/Esc exits.
 
