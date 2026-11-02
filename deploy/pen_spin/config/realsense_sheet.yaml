@@ -1,0 +1,12 @@
+# Higher-resolution profile for stationary/slow A4 sheet detection tests.
+# D435i IR1 supports 1280x720 at 30 FPS, not 90 FPS.
+# Intrinsics are read from this active stream by the SDK.
+realsense:
+  serial: null
+  width: 1280
+  height: 720
+  fps: 30
+capture:
+  exposure_time: 5000  # microseconds; +/- in the preview adjusts it for this run
+  gain: 16
+fast_roi: null
