@@ -91,3 +91,5 @@ pen-sim = { cmd = "python deploy/pen_spin/scripts/pen_pose_viewer.py", descripti
 pen-policy = { cmd = "python -m runtime", description = "After pen-observer: start real-hand policy control with the live MuJoCo mirror (pass --policy <policy.onnx> --motion <clip.npz>; --no-sim disables the mirror)" }
 
 pen-observer-realsense = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --source realsense", description = "D435/D435i global-shutter IR1 observer, active-stream calibration" }
+
+pen-tag-test = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --source realsense --detect-only --preview", description = "Full-sheet AprilTag and custom pen detection with 2D tracks; no pose solve or publication" }

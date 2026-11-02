@@ -301,6 +301,8 @@ def main() -> int:
   ap.add_argument("--port", type=int, default=PEN_PORT)
   ap.add_argument("--rate-hz", type=float, default=90.0)
   ap.add_argument("--preview", action="store_true")
+  ap.add_argument("--detect-only", action="store_true",
+                  help="whole-sheet detection and 2D tracks; no wrist calibration or pose publication")
   ap.add_argument("--exposure-us", type=float,
                   help="Camera exposure time in microseconds for this run only; defaults to the source camera YAML")
   ap.add_argument("--tag-layout", help="pen tag JSON; default: config/pen_tags.json (1x2, 250 mm)")
@@ -350,6 +352,10 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None):
   K, dist = ((camera.K, camera.dist) if camera is not None
              else (get_camera_matrix(cfg), get_dist_coeffs(cfg)))
   est = PenPoseEstimator(K, dist, layout=PenTagLayout(args.tag_layout), min_tags=2)
+  if args.detect_only:
+    from lib.tag_sheet_preview import run_detection_preview
+    frames = _source_frames(args, cfg, K, dist, est.layout, camera)
+    return run_detection_preview(args, frames, est, camera, diagnostics)
   world = WorldFrame(args.world_frames)
   selector = RoiSelector()
   preview_initialized = False
@@ -369,18 +375,7 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None):
     print("[pen observer] WARNING: publishing in the CAMERA frame "
           "(--no-world-tag); the policy expects the wrist-tag frame.")
 
-  if camera is not None:
-    frames = camera.frames()
-  elif args.source == "synthetic":
-    frames = _synthetic_frames(K, dist, args.rate_hz, est.layout)
-  elif args.source == "video":
-    cap = cv2.VideoCapture(args.video if args.video else 0)
-    if not cap.isOpened():
-      print(f"[pen observer] cannot open video source {args.video!r}")
-      return 2
-    frames = _video_frames(cap)
-  else:
-    frames = _camera_frames(cfg)
+  frames = _source_frames(args, cfg, K, dist, est.layout, camera)
 
   n = ok_n = 0
   total_n = total_ok = 0
@@ -626,6 +621,23 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None):
     if args.preview:
       cv2.destroyAllWindows()
   return 0
+
+
+def _source_frames(args, cfg, K, dist, layout, camera=None):
+  import cv2
+  if camera is not None:
+    return camera.frames()
+  elif args.source == "synthetic":
+    return _synthetic_frames(K, dist, args.rate_hz, layout)
+  elif args.source == "video":
+    cap = cv2.VideoCapture(args.video if args.video else 0)
+    if not cap.isOpened():
+      cap.release()
+      raise RuntimeError(f"Cannot open video source {args.video!r}")
+    return _video_frames(cap)
+  else:
+    return _camera_frames(cfg)
+
 
 
 def _publish(pub, pose, world_fixed: bool) -> None:

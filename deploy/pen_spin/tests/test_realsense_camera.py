@@ -137,3 +137,14 @@ def test_control_failure_also_closes_device(rig):
     with pytest.raises(RuntimeError, match='control write failed'):
         rig.camera.__enter__()
     rig.pipeline.stop.assert_called_once()
+
+
+def test_preview_exposure_is_capped_by_frame_period_without_changing_config(rig):
+    with rig.camera as camera:
+        rig.sensor.get_option_range.return_value = SimpleNamespace(min=1, max=165000, step=1)
+        rig.sensor.get_option.side_effect = lambda _option: rig.sensor.set_option.call_args.args[1]
+        assert camera.adjust_exposure(2) == 2000
+        assert camera.adjust_exposure(.5) == 1000
+        value = camera.adjust_exposure(100)
+        assert 11110 <= value <= 1e6 / 90
+        assert rig.cfg['capture']['exposure_time'] == 1000

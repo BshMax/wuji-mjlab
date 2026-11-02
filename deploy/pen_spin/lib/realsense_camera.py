@@ -82,6 +82,7 @@ class RealSenseCamera:
             self.K, self.dist = opencv_intrinsics(intr, rs)
             # All controls below belong to the stereo sensor, not the RGB sensor.
             sensor = device.first_depth_sensor()
+            self.sensor = sensor
             if sensor.supports(rs.option.hdr_enabled):
                 self._set(sensor, rs.option.hdr_enabled, 0)
             self._set(sensor, rs.option.frames_queue_size, 1)
@@ -158,6 +159,17 @@ class RealSenseCamera:
             exposure = self.exposure_us
         return (f"IR capture={fps} FPS | Exposure {label}={exposure:g}us "
                 f"| skipped={self.skipped_frames}")
+
+    def adjust_exposure(self, factor):
+        """Preview-only manual adjustment; never write the user's YAML."""
+        bounds = self.sensor.get_option_range(self.rs.option.exposure)
+        upper = min(bounds.max, 1e6 / self.cfg['realsense']['fps'])
+        value = max(bounds.min, min(upper, self.exposure_us * factor))
+        value = bounds.min + round((value - bounds.min) / bounds.step) * bounds.step
+        value = max(bounds.min, min(upper, value))
+        self._set(self.sensor, self.rs.option.exposure, value)
+        self.exposure_us = self.sensor.get_option(self.rs.option.exposure)
+        return self.exposure_us
 
     def close(self):
         if self.pipeline is not None:
