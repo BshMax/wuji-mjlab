@@ -98,3 +98,17 @@ pixi run -e pen-spin-deploy pen-observer --preview
 ## 7. 开始运行
 
 硬件与观测核对完成后，按[部署文档](deploy_zh.md#启动相机与策略)先启动相机观测，待观测就绪后运行 `pen-policy`；该命令默认同时启动真机控制和实时镜像窗口，无需另外打开 `pen-sim`。选择同一动作组的策略与参考轨迹；模型和数据下载见[部署](deploy_zh.md)和[训练](train_zh.md)。
+
+## 7. A4 打印腕部标签与笔上贴纸
+
+打印工具 `deploy/pen_spin/tools/print_tracking_tags.py` 生成两页 A4：第一页为 12 个 36h11/ID 0 腕部标签，黑框 50.4 mm；第二页为 6 套自定义笔贴，每套 10 张面贴、18 个码。工具需要 `reportlab`、`Pillow`、`numpy` 和 `opencv-contrib-python`，不连接相机或机械手。可在独立环境运行，避免给部署环境加入文档依赖：
+
+```bash
+uv run --python 3.11 --with reportlab --with Pillow --with numpy --with opencv-contrib-python python deploy/pen_spin/tools/print_tracking_tags.py --output /tmp/tracking_tags_A4.pdf
+```
+
+默认使用 Linux 的文泉驿微米黑字体；其他系统通过 `--font <支持中英文的 TrueType 字体路径>` 指定。打印选“实际大小/100%”，关闭“适合页面”，先测量页面上的 100 mm 校验线。建议哑光不干胶；腕部标签的白边不能算入 50.4 mm 黑框尺寸，备用 ID 0 标签不要同时入镜。
+
+侧贴按实体 18×36 mm 输出，端贴为 18×18 mm；不要把方形原 PNG 直接当正方形打印。侧贴的页面上边统一指向 A_top（端面码 17），面贴外的 T/B 表示 A_top/A_bottom，+X/-X/+Y/-Y 对应笔体坐标面。先把 0、1 所在面定为下笔头 +X 面，把 9、10 所在面定为上笔头 +X 面，确保两端的 +X 面朝同一方向。竖直摆放笔，使 17 端朝上、0/1 面和 9/10 面朝向自己，此时右侧为 +Y、左侧为 -Y、背面为 -X。按端贴外标注的 up/right 方向放置端面；方向标注和裁切虚线均不属于图案。每支笔只安装一套，连接笔杆的内端面不贴码。
+
+重新贴图后先用观测器核对头尾、笔轴和线框对齐，再进行动态测试。不要改动图案大小、顺序或朝向后继续沿用原标签几何。
