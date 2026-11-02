@@ -1,0 +1,11 @@
+# D435/D435i IR1: global shutter, rectified 8-bit grayscale.
+# Intrinsics are read from the active SDK stream, never from camera.yaml.
+realsense:
+  serial: null
+  width: 848
+  height: 480
+  fps: 90
+capture:
+  exposure_time: 1000  # microseconds, manual exposure
+  gain: 16
+fast_roi: null  # start with the full image; select again for a new stream size

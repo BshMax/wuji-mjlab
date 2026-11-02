@@ -115,3 +115,13 @@ PY
 ```
 
 Expected output: `tags=18, length_mm=250.0`. Physical dimensions and textures must match the layout.
+
+## D435 / D435i global-shutter IR source
+
+Use `pixi run -e pen-spin-deploy pen-observer-realsense --preview` instead of the Hikvision observer. The source reads rectified left-IR Y8, with intrinsics from the active SDK stream. RGB-to-gray conversion does not turn the rolling-shutter RGB sensor into a global-shutter sensor. No depth stream is needed for the existing multi-marker PnP estimator.
+
+Settings live in `deploy/pen_spin/config/realsense.yaml`: 848×480 at 90 FPS, manual 1000 us exposure, gain 16, emitter off. Use `--camera-serial` for multiple devices, `--camera-config` for a separate profile, and `--exposure-us` for a runtime override. D435i 1280×720 supports at most 30 FPS on the checked device. Unsupported profiles fail explicitly. Re-select the detection ROI after changing resolution; ROI saves affect only the selected config.
+
+Resample the wrist tag after moving/replacing the camera. Keep camera and wrist mount fixed; moving the wrist tag relative to the hand requires re-establishing the transform in `tag_frame.py`. Wrist-tag black-square size is 50.4 mm. Keep the pen's custom source dictionary and physical geometry unchanged.
+
+For a camera-only check add `--max-frames 300`. Record per-frame measurements with `--diagnostics /tmp/pen-static.jsonl` (must be a new file), then run `pixi run -e pen-spin-deploy python deploy/pen_spin/tools/summarize_observer.py /tmp/pen-static.jsonl --static`. Omit `--static` for moving-pen data. Processing times exclude capture wait and preview; stationary repeatability does not establish absolute accuracy. Verify known distances, overlay alignment, tag pixel size, and valid pose rate before enabling the hand policy. The receiver retains the last valid sample: monitor pose age as well as the visualization.

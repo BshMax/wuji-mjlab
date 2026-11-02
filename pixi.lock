@@ -267,6 +267,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/d5/0c/043d5e551459da400957a1395e0febbf771446ff34291afcbe3d8be2a279/fsspec-2026.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/de/e4/1ba6f44e491c4eece978685230dde56b14d51a0365bc1b774ddaa94d14cd/pyopengl-3.1.10-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e8/2d/d2a548598be01649e2d46231d151a6c56d10b964d94043a335ae56ea2d92/flatbuffers-25.12.19-py2.py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/d7/2f/9070190cb513376567890a9fb6680dad865d2f28834385991f85b3fed691/pyrealsense2-2.58.1.10581-cp311-cp311-manylinux1_x86_64.whl
   reorient-deploy:
     channels:
     - url: https://prefix.dev/conda-forge/
@@ -3098,3 +3099,8 @@ packages:
   sha256: 2dd0780f1a55c21d8e06a743de5bd95653de630decfff40621dbde78cc307102
   index: https://download.pytorch.org/whl/cu128
   requires_python: '>=3'
+- pypi: https://files.pythonhosted.org/packages/d7/2f/9070190cb513376567890a9fb6680dad865d2f28834385991f85b3fed691/pyrealsense2-2.58.1.10581-cp311-cp311-manylinux1_x86_64.whl
+  name: pyrealsense2
+  version: 2.58.1.10581
+  sha256: 6ae3ca6e400a1cf1081d0ef12984452c6d00fa47de6789b532cb599fc5dc7365
+  requires_python: '>=3.9'

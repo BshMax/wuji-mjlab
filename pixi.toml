@@ -66,6 +66,7 @@ wuji_sdk = "==2026.7.2"  # gen2 driver; its manylinux_2_34 wheels require the wo
 
 [feature.pen-spin-deploy.pypi-dependencies]
 wuji-pen-spin-deploy = { path = "deploy/pen_spin", editable = true }
+pyrealsense2 = "==2.58.1.10581"
 onnxruntime = ">=1.24.4, <2"
 mujoco = ">=3.3, <4"
 pyzmq = ">=27.0"
@@ -88,3 +89,5 @@ check     = { cmd = "python deploy/reorient/tools/check_setup.py", description =
 pen-observer = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --source camera", description = "Start the pen camera observer and publish pose on ZMQ:5555" }
 pen-sim = { cmd = "python deploy/pen_spin/scripts/pen_pose_viewer.py", description = "Start the standalone MuJoCo pen viewer" }
 pen-policy = { cmd = "python -m runtime", description = "After pen-observer: start real-hand policy control with the live MuJoCo mirror (pass --policy <policy.onnx> --motion <clip.npz>; --no-sim disables the mirror)" }
+
+pen-observer-realsense = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --source realsense", description = "D435/D435i global-shutter IR1 observer, active-stream calibration" }

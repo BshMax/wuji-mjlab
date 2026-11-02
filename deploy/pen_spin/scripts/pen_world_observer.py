@@ -17,6 +17,7 @@ import os
 import sys
 import time
 from collections import deque
+from contextlib import ExitStack
 from functools import lru_cache
 
 import numpy as np
@@ -290,14 +291,18 @@ def _synthetic_frames(K, dist, hz, layout=None):
 
 def main() -> int:
   ap = argparse.ArgumentParser()
-  ap.add_argument("--source", choices=("camera", "video", "synthetic"),
+  ap.add_argument("--source", choices=("camera", "realsense", "video", "synthetic"),
                   default="camera")
+  ap.add_argument("--camera-config", help="source-specific camera YAML")
+  ap.add_argument("--camera-serial", help="RealSense device serial number")
+  ap.add_argument("--max-frames", type=int, help="stop after N frames (bench checks)")
+  ap.add_argument("--diagnostics", help="write per-frame measurements to a new JSONL file")
   ap.add_argument("--video", help="path/device for --source video")
   ap.add_argument("--port", type=int, default=PEN_PORT)
   ap.add_argument("--rate-hz", type=float, default=90.0)
   ap.add_argument("--preview", action="store_true")
   ap.add_argument("--exposure-us", type=float,
-                  help="Camera exposure time in microseconds for this run only; defaults to camera.yaml")
+                  help="Camera exposure time in microseconds for this run only; defaults to the source camera YAML")
   ap.add_argument("--tag-layout", help="pen tag JSON; default: config/pen_tags.json (1x2, 250 mm)")
   ap.add_argument("--min-faces", type=int, default=1,
                   help="refuse poses spanning fewer cube faces than this "
@@ -313,6 +318,28 @@ def main() -> int:
   if args.world_frames < 1:
     ap.error("--world-frames must be positive")
 
+  if args.max_frames is not None and args.max_frames < 1:
+    ap.error("--max-frames must be positive")
+  config_file = args.camera_config
+  if config_file is None and args.source == "realsense":
+    config_file = os.path.join(os.path.dirname(__file__), "..", "config", "realsense.yaml")
+  cfg = load_camera_config(config_file)
+  if args.exposure_us is not None:
+    cfg['capture']['exposure_time'] = args.exposure_us
+  if args.camera_serial and args.source != "realsense":
+    ap.error("--camera-serial requires --source realsense")
+  with ExitStack() as resources:
+    diagnostics = (resources.enter_context(open(args.diagnostics, 'x', encoding='utf-8'))
+                   if args.diagnostics else None)
+    camera = None
+    if args.source == "realsense":
+      from lib.realsense_camera import RealSenseCamera
+      camera = resources.enter_context(RealSenseCamera(cfg, serial=args.camera_serial))
+      cfg = camera.cfg
+    return _run_observer(args, cfg, config_file, camera, diagnostics)
+
+
+def _run_observer(args, cfg, config_file, camera=None, diagnostics=None):
   import cv2
   from lib.detection_roi import RoiSelector, frame_roi, save_selection
   from lib.pen_pose import PenPoseEstimator, PenTagLayout
@@ -320,10 +347,8 @@ def main() -> int:
     from lib.preview_ui import configure_qt_fonts
     configure_qt_fonts()
 
-  cfg = load_camera_config()
-  if args.exposure_us is not None:
-    cfg['capture']['exposure_time'] = args.exposure_us
-  K, dist = get_camera_matrix(cfg), get_dist_coeffs(cfg)
+  K, dist = ((camera.K, camera.dist) if camera is not None
+             else (get_camera_matrix(cfg), get_dist_coeffs(cfg)))
   est = PenPoseEstimator(K, dist, layout=PenTagLayout(args.tag_layout), min_tags=2)
   world = WorldFrame(args.world_frames)
   selector = RoiSelector()
@@ -344,7 +369,9 @@ def main() -> int:
     print("[pen observer] WARNING: publishing in the CAMERA frame "
           "(--no-world-tag); the policy expects the wrist-tag frame.")
 
-  if args.source == "synthetic":
+  if camera is not None:
+    frames = camera.frames()
+  elif args.source == "synthetic":
     frames = _synthetic_frames(K, dist, args.rate_hz, est.layout)
   elif args.source == "video":
     cap = cv2.VideoCapture(args.video if args.video else 0)
@@ -363,6 +390,10 @@ def main() -> int:
   frame_times = deque()
   observer_fps = None
   phase_ms = dict(grab=0., base=0., detect=0., solve=0., output=0., preview=0.)
+  processing_ms = deque(maxlen=10000)
+  last_valid_t = None
+  longest_no_pose_s = 0.
+  run_start = time.monotonic()
   consensus_at_report = 0
   fast_at_report = full_at_report = 0
   try:
@@ -406,6 +437,7 @@ def main() -> int:
       # jump gate: a gate rejects exactly the fast motion a spinning pen
       # consists of. lib/zmq_bridge.PenReceiver keeps the last valid pose and
       # ages it.
+      pos = quat = None
       if pose is None:
         _publish(pub, None, frame_fixed)
       else:
@@ -420,6 +452,30 @@ def main() -> int:
 
       preview_start = time.perf_counter()
       phase_ms['output'] += (preview_start - solve_end) * 1000.
+      processing_ms.append((preview_start - frame_start) * 1000.)
+      measured_t = time.monotonic()
+      if frame_fixed:
+        reference_t = run_start if last_valid_t is None else last_valid_t
+        longest_no_pose_s = max(longest_no_pose_s, measured_t - reference_t)
+        if pose is not None:
+          last_valid_t = measured_t
+      else:
+        # Initial wrist sampling and an explicit resample are not pen dropouts.
+        run_start = measured_t
+        last_valid_t = None
+      if diagnostics is not None:
+        record = dict(t_monotonic_s=measured_t, world_fixed=frame_fixed,
+                      processing_ms=processing_ms[-1], source=args.source,
+                      position=None if pos is None else pos.tolist(),
+                      quat_wxyz=None if quat is None else quat.tolist(),
+                      tag_ids=[] if pose is None else list(pose.tag_ids),
+                      reproj_px=None if pose is None else float(pose.reproj_px),
+                      coplanar=None if pose is None else bool(pose.coplanar))
+        if camera is not None:
+          record.update(capture_fps=camera.capture_fps,
+                        actual_exposure_us=camera.actual_exposure_us,
+                        skipped_frames=camera.skipped_frames)
+        diagnostics.write(json.dumps(record) + "\n")
       frame_now = time.monotonic()
       frame_times.append(frame_now)
       while len(frame_times) > 2 and frame_times[1] < frame_now - 1.0:
@@ -480,6 +536,9 @@ def main() -> int:
         stats = f"Observer FPS: {observer_fps:.1f}" if observer_fps is not None else "Observer FPS: --"
         if args.source == 'camera':
           stats += f" | Exposure set: {cfg['capture']['exposure_time']/1000.:g} ms"
+        if camera is not None:
+          cv2.putText(vis, camera.status(), (10, vis.shape[0]-86),
+                      cv2.FONT_HERSHEY_SIMPLEX, .45, (255, 255, 255), 1)
         cv2.putText(vis, stats, (10, vis.shape[0]-62), cv2.FONT_HERSHEY_SIMPLEX,
                     .55, (0, 0, 0), 3)
         cv2.putText(vis, stats, (10, vis.shape[0]-62), cv2.FONT_HERSHEY_SIMPLEX,
@@ -505,7 +564,7 @@ def main() -> int:
           selection = (0, 0, gray.shape[1], gray.shape[0])
         if selection is not None:
           try:
-            saved = save_selection(cfg, selection, gray.shape)
+            saved = save_selection(cfg, selection, gray.shape, config_file=config_file)
             if saved is not None:
               cfg["fast_roi"] = saved
               selector.cancel()
@@ -529,6 +588,8 @@ def main() -> int:
         fast_total = getattr(est, 'consensus_fast', 0)
         full_total = getattr(est, 'consensus_full', 0)
         phases = ' '.join(f'{name}={elapsed/max(n, 1):.1f}' for name, elapsed in phase_ms.items())
+        if camera is not None:
+          print(f"[RealSense] {camera.status()} | valid poses={ok_n / (now - t_report):.1f} Hz")
         print(f"[pen timing] mean ms/frame: {phases} | "
               f"consensus={consensus_total-consensus_at_report}/{n} frames "
               f"fast={fast_total-fast_at_report} full={full_total-full_at_report} "
@@ -539,6 +600,8 @@ def main() -> int:
         n = ok_n = 0
         t_report = now
       previous_frame_end = time.perf_counter()
+      if args.max_frames is not None and total_n >= args.max_frames:
+        break
   except KeyboardInterrupt:
     print("\n[pen observer] stopped")
   finally:
@@ -550,6 +613,15 @@ def main() -> int:
           f"reproj-rejects={est.rejected_reproj}, "
           f"visibility-rejects={getattr(est, 'rejected_visibility', 0)}, "
           f"coplanar={est.coplanar_solves}")
+    if processing_ms:
+      p50, p95 = np.percentile(processing_ms, [50, 95])
+      print(f"[pen timing] processing p50={p50:.2f}ms p95={p95:.2f}ms "
+            f"(last {len(processing_ms)} frames, excludes grab/preview); "
+            f"longest no-pose interval after calibration={longest_no_pose_s*1000:.1f}ms")
+    if camera is not None:
+      print(f"[RealSense] final: {camera.status()}")
+    if hasattr(frames, "close"):
+      frames.close()
     pub.close(linger=0)
     if args.preview:
       cv2.destroyAllWindows()
@@ -576,12 +648,15 @@ def _publish(pub, pose, world_fixed: bool) -> None:
 
 def _video_frames(cap):
   import cv2
-  while True:
-    ok, frame = cap.read()
-    if not ok:
-      break
-    yield (cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-           if frame.ndim == 3 else frame), None
+  try:
+    while True:
+      ok, frame = cap.read()
+      if not ok:
+        break
+      yield (cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+             if frame.ndim == 3 else frame), None
+  finally:
+    cap.release()
 
 
 def _camera_frames(cfg):
