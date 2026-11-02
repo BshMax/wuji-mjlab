@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 import math
+import time
 from collections import deque
 
 import numpy as np
@@ -40,6 +41,9 @@ class RealSenseCamera:
         self.sync_skips = 0
         self.sync_delta_ms = None
         self.frame_number = None
+        self.timestamp_ms = None
+        self.timestamp_domain = None
+        self.host_receive_ns = None
         self.pipeline = None
         self.capture_fps = None
         self.actual_exposure_us = None
@@ -151,6 +155,7 @@ class RealSenseCamera:
                     break
                 frames = newer
             ir = frames.get_infrared_frame(1)
+            self.host_receive_ns = time.perf_counter_ns()
             if not ir:
                 raise RuntimeError("RealSense frameset is missing the requested IR1 image")
             number, timestamp = ir.get_frame_number(), ir.get_timestamp()
@@ -169,6 +174,8 @@ class RealSenseCamera:
                     continue  # never compare detections from different exposures
             sync_misses = 0
             self.frame_number = number
+            self.timestamp_ms = timestamp
+            self.timestamp_domain = str(ir.get_frame_timestamp_domain())
             if self._last_number is not None:
                 self.skipped_frames += max(0, number - self._last_number - 1)
             self._last_number = number

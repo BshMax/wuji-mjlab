@@ -23,6 +23,13 @@ class TagDetection:
     marker_id: int
     corners: np.ndarray
     track_id: int = 0
+    source: str = 'decoded'
+    corrected_bits: int = 0
+    decode_distance: int | None = None
+
+    @property
+    def verified(self):
+        return self.source in {'decoded', 'decoded_exact', 'decoded_corrected', 'tracked_redecoded'}
 
     @cached_property
     def center(self):
