@@ -79,3 +79,20 @@ def test_sheet_mode_bypasses_world_calibration_and_pose_socket(monkeypatch):
                            source='video', max_frames=1)
     assert observer._run_observer(args, load_camera_config(), None) == 0
     forbidden.assert_not_called()
+
+
+def test_detection_rate_limit_paces_fresh_frames_without_duplication(monkeypatch):
+    from lib import tag_sheet_preview as module
+    clock = SimpleNamespace(now=0.)
+    monkeypatch.setattr(module.time, 'monotonic', lambda: clock.now)
+    monkeypatch.setattr(module.time, 'sleep', lambda seconds: setattr(clock, 'now', clock.now + seconds))
+    seen_at = []
+
+    def frames():
+        for _ in range(6):
+            seen_at.append(clock.now)
+            yield np.full((80, 80), 255, np.uint8), None
+
+    args = SimpleNamespace(preview=False, source='video', max_frames=6, detect_hz=50)
+    assert module.run_detection_preview(args, frames(), estimator()) == 0
+    np.testing.assert_allclose(seen_at, np.arange(6) / 50)

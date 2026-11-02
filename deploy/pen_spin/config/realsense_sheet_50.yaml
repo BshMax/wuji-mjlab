@@ -1,0 +1,11 @@
+# Target 50 detections/s with --detect-hz 50; D435i has no native 50 FPS mode.
+# Capture at 60 FPS and consume the latest frame at each detection tick.
+realsense:
+  serial: null
+  width: 848
+  height: 480
+  fps: 60
+capture:
+  exposure_time: 5000
+  gain: 16
+fast_roi: null

@@ -1,0 +1,11 @@
+# Highest-area IR1 Y8 profile enumerated on this D435i (firmware 5.15.1.55).
+# 800 vs 720 adds vertical image area; measured fx/fy are the same.
+realsense:
+  serial: null
+  width: 1280
+  height: 800
+  fps: 30
+capture:
+  exposure_time: 5000
+  gain: 16
+fast_roi: null

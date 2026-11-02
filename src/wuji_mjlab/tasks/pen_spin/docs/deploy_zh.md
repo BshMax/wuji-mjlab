@@ -87,6 +87,12 @@ pixi run -e pen-spin-deploy pen-tag-test --exposure-us 5000
 # 或者给观测器增加：--source realsense --detect-only --preview
 ```
 
+曝光调节写入红外传感器的曝光时间，检测器也使用调节后的图像，不是显示亮度滤镜。长曝光能增加收光量，但运动时更容易模糊。
+
+需要每秒检测约 50 次时运行 `pixi run -e pen-spin-deploy pen-tag-test-50`：独立配置 `realsense_sheet_50.yaml` 使用 848×480、60 FPS 采集，并通过 `--detect-hz 50` 限制检测频率。相机没有原生 50 FPS 档位；每次取最新帧，不通过重复帧凑数。处理负载较高时实际检测率会低于目标。
+
+完整枚举本机左红外 Y8 流后，最高分辨率是 1280×800、30 FPS；1280×720 也最高 30 FPS。需要至少 50 FPS 的采集时最高为 848×480。这里的最高分辨率指红外流，不是深度或彩色流。
+
 当前高速配置为 848×480、90 FPS。远距离整页检测可选独立高清配置：
 
 ```bash

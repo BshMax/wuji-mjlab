@@ -106,6 +106,9 @@ def run_detection_preview(args, frames, pen_estimator, camera=None, diagnostics=
     title = 'tag sheet test'
     count = 0
     started = report_at = time.monotonic()
+    target_hz = getattr(args, 'detect_hz', None)
+    period = 0. if target_hz is None else 1. / target_hz
+    deadline = started
     timestamps = deque(maxlen=120)
     detected_ms = deque(maxlen=120)
     detected_instances = 0
@@ -113,6 +116,9 @@ def run_detection_preview(args, frames, pen_estimator, camera=None, diagnostics=
           'no rigid-body solve, no pose publication', flush=True)
     print('[tag sheet] Keep the whole sheet in view. Repeated IDs get separate T numbers. '
           'q/Esc: quit; t: toggle trails; r: reset tracks; +/-: exposure', flush=True)
+    if target_hz is not None:
+        print(f'[tag sheet] detection limit={target_hz:g} Hz; camera capture rate is separate; '
+              'no frame duplication', flush=True)
     trails = True
     try:
         for gray, _truth in frames:
@@ -150,7 +156,8 @@ def run_detection_preview(args, frames, pen_estimator, camera=None, diagnostics=
                         points = np.asarray(tracker.tracks[d.track_id].trail, dtype=np.int32)
                         cv2.polylines(vis, [points], False, color, 1)
                 lines = [
-                    'SHEET TEST | full image | detection + 2D tracks | NO POSE',
+                    'SHEET TEST | full image | 2D tracks | NO POSE'
+                    + ('' if target_hz is None else f' | limit={target_hz:g} Hz'),
                     f'APR36h11: {len(april)} tags / {len({d.marker_id for d in april})} IDs | '
                     f'PEN: {len(pen)} tags / {len({d.marker_id for d in pen})} IDs',
                     f'Processed: {fps:.1f} FPS | detect: {np.median(detected_ms):.1f} ms | '
@@ -184,6 +191,15 @@ def run_detection_preview(args, frames, pen_estimator, camera=None, diagnostics=
                 report_at = now
             if args.max_frames is not None and count >= args.max_frames:
                 break
+            # Pace before acquiring the NEXT image, avoiding an intentional hold
+            # of this frame. RealSense.frames() then drains any queued old frames.
+            if period:
+                deadline += period
+                remaining = deadline - time.monotonic()
+                if remaining > 0:
+                    time.sleep(remaining)
+                else:
+                    deadline = time.monotonic()  # no burst of catch-up detections
     except KeyboardInterrupt:
         pass
     finally:

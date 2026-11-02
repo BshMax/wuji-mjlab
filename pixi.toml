@@ -93,3 +93,5 @@ pen-policy = { cmd = "python -m runtime", description = "After pen-observer: sta
 pen-observer-realsense = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --source realsense", description = "D435/D435i global-shutter IR1 observer, active-stream calibration" }
 
 pen-tag-test = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --source realsense --detect-only --preview", description = "Full-sheet AprilTag and custom pen detection with 2D tracks; no pose solve or publication" }
+
+pen-tag-test-50 = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --source realsense --detect-only --preview --detect-hz 50 --camera-config deploy/pen_spin/config/realsense_sheet_50.yaml", description = "A4 detection at up to 50 Hz with 848x480 IR1 capture at 60 FPS" }

@@ -303,6 +303,8 @@ def main() -> int:
   ap.add_argument("--preview", action="store_true")
   ap.add_argument("--detect-only", action="store_true",
                   help="whole-sheet detection and 2D tracks; no wrist calibration or pose publication")
+  ap.add_argument("--detect-hz", type=float,
+                  help="maximum detection rate in --detect-only mode; capture FPS is configured separately")
   ap.add_argument("--exposure-us", type=float,
                   help="Camera exposure time in microseconds for this run only; defaults to the source camera YAML")
   ap.add_argument("--tag-layout", help="pen tag JSON; default: config/pen_tags.json (1x2, 250 mm)")
@@ -315,6 +317,11 @@ def main() -> int:
                   help="publish in the CAMERA frame; the policy side expects "
                        "the wrist-tag frame, so this is for bench work only")
   args = ap.parse_args()
+  if args.detect_hz is not None:
+    if not np.isfinite(args.detect_hz) or args.detect_hz <= 0:
+      ap.error("--detect-hz must be finite and positive")
+    if not args.detect_only:
+      ap.error("--detect-hz requires --detect-only")
   if args.exposure_us is not None and (not np.isfinite(args.exposure_us) or args.exposure_us <= 0):
     ap.error("--exposure-us must be finite and positive")
   if args.world_frames < 1:
