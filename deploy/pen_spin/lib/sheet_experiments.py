@@ -14,7 +14,9 @@ from collections import Counter
 import cv2
 import numpy as np
 
-from lib.tag_sheet_preview import TagDetection, TagSheetDetector
+from lib.tag_evidence import EvidenceDetection as TagDetection
+from lib.tag_evidence import as_evidence
+from lib.tag_sheet_preview import TagSheetDetector
 
 
 class ExperimentalSheetDetector:
@@ -30,6 +32,7 @@ class ExperimentalSheetDetector:
                                  for bits in patterns for rotation in range(4)])
         self.rejections = Counter()
         self.last_retries = 0
+        self.prior_decodes = []
 
     @staticmethod
     def refine(gray, corners):
@@ -75,10 +78,18 @@ class ExperimentalSheetDetector:
         if best == 0 and np.min(margin) < .05:
             self.rejections['uncertain_exact_bit'] += 1
             return None
-        # ECC-specific gates are added as a separate ablation stage.
+        if best == 1:
+            mismatch = self.codes[order[0]] != bits
+            # Only repair an uncertain cell, never a clearly printed opposite
+            # bit. Reject near-competing codes and weak unmodified cells.
+            if (contrast < 30 or runner_up-best < 2 or np.max(margin[mismatch]) > .30
+                    or np.min(margin[~mismatch]) < .10):
+                self.rejections['ecc_quality_or_ambiguity'] += 1
+                return None
         tid, rotation = divmod(int(order[0]), 4)
         canonical = np.roll(np.asarray(corners, float), rotation, axis=0)
-        detection = TagDetection('PEN', tid, canonical, source='decoded_exact',
+        detection = TagDetection('PEN', tid, canonical,
+                                 source='decoded_corrected' if best else 'decoded_exact',
                                  corrected_bits=best, decode_distance=best)
         detection.quality = dict(contrast=contrast, runner_up_distance=runner_up,
                                  minimum_bit_margin=float(np.min(margin)))
@@ -106,13 +117,24 @@ class ExperimentalSheetDetector:
                 break
             self.last_retries += 1
             refined = self.refine(gray, quad)
-            detection = self.decode(gray, refined)
+            detection = self.decode(gray, refined, max_errors=int(self.profile in ('ecc1', 'tracked')))
             if detection is not None and not self._overlaps(detection, accepted):
                 accepted.append(detection)
         return accepted
 
+    def _confirm(self, detections):
+        for detection in detections:
+            if detection.source == 'decoded_corrected':
+                detection.confirmed = any(
+                    old.marker_id == detection.marker_id
+                    and np.linalg.norm(old.center-detection.center) < max(5., detection.size_px*.75)
+                    for old in self.prior_decodes)
+        # A tracked-only box never provides evidence for ECC confirmation.
+        self.prior_decodes = [d for d in detections if d.family == 'PEN' and d.source != 'tracked_only']
+        return detections
+
     def detect(self, gray):
-        found = self.base.detect(gray)
+        found = [as_evidence(d) for d in self.base.detect(gray)]
         result = []
         for detection in found:
             if detection.family == 'PEN':
@@ -123,4 +145,4 @@ class ExperimentalSheetDetector:
                 else:
                     detection.source = 'decoded_exact'  # retain baseline's exact current-frame decode
             result.append(detection)
-        return self._rescue(gray, result)
+        return self._confirm(self._rescue(gray, result))

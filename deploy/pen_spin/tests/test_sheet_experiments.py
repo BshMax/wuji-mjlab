@@ -45,3 +45,31 @@ def test_tiny_candidate_refinement_stays_bounded():
     quad = np.float32([[35, 35], [155, 35], [155, 155], [35, 155]])
     refined = ExperimentalSheetDetector.refine(image, quad)
     assert np.max(np.linalg.norm(refined-quad, axis=1)) <= 1.25
+
+
+def test_one_bit_repair_requires_uncertain_cell_and_temporal_confirmation():
+    estimator = PenPoseEstimator(np.eye(3)*638, np.zeros(5))
+    detector = ExperimentalSheetDetector(estimator, 'ecc1')
+    original = artwork(estimator)
+    pattern = np.asarray(estimator.layout.custom_dictionary['patterns'][0]['bits'])
+    quad = np.float32([[35, 35], [155, 35], [155, 155], [35, 155]])
+    accepted = None
+    for index in range(16):
+        row, col = divmod(index, 4)
+        image = original.copy()
+        image[55+row*20:75+row*20, 55+col*20:75+col*20] = 140 if pattern[row, col] else 110
+        assert detector.decode(image, quad, max_errors=0) is None
+        result = detector.decode(image, quad, max_errors=1)
+        if result is not None:
+            accepted = result
+            assert result.marker_id == 0 and result.corrected_bits == 1
+            assert result.source == 'decoded_corrected'
+            first = detector._confirm([result])[0]
+            assert not first.verified
+            second = detector.decode(image, quad, max_errors=1)
+            assert detector._confirm([second])[0].verified
+            # A confidently opposite printed bit must not be repaired.
+            image[55+row*20:75+row*20, 55+col*20:75+col*20] = 255 if pattern[row, col] else 0
+            assert detector.decode(image, quad, max_errors=1) is None
+            break
+    assert accepted is not None

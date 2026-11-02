@@ -15,6 +15,7 @@ from collections import Counter, deque
 import cv2
 import numpy as np
 
+from lib.tag_evidence import as_evidence
 from lib.tag_sheet_preview import TagSheetDetector, TagTracker
 
 
@@ -118,7 +119,7 @@ def _panel(gray, detections, tracker, side, trails, stats, track_labels=False):
 
 def _serialize(detections):
     return [dict(family=d.family, id=d.marker_id, track=d.track_id, source=d.source, corrected_bits=d.corrected_bits,
-                 decode_distance=d.decode_distance,
+                 decode_distance=d.decode_distance, confirmed=d.confirmed, quality=d.quality,
                  center_px=d.center.tolist(), corners_px=d.corners.tolist(), size_px=d.size_px)
             for d in detections]
 
@@ -164,7 +165,8 @@ def run_stereo_preview(args, frames, pen_estimator, camera, diagnostics=None):
             if right is None or left.shape != right.shape:
                 raise RuntimeError('Stereo test needs a synchronized left/right image pair of equal size')
             before = time.perf_counter()
-            detections = [detectors[0].detect(left), detectors[1].detect(right)]
+            detections = [[as_evidence(d) for d in detector.detect(image)]
+                          for detector, image in zip(detectors, (left, right), strict=True)]
             now = time.monotonic()
             for tracker, found in zip(trackers, detections, strict=True):
                 tracker.update(found, now)

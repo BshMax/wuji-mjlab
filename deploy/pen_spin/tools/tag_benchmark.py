@@ -19,6 +19,7 @@ from lib.camera_config import load_camera_config
 from lib.pen_pose import PenPoseEstimator
 from lib.printed_tag_template import project_paper
 from lib.tag_dataset import PairDataset, PairRecorder, load_truth
+from lib.tag_evidence import as_evidence
 from lib.tag_metrics import latency_summary, score_frame, summarize_scores
 from lib.tag_sheet_preview import TagSheetDetector, TagTracker
 
@@ -151,9 +152,11 @@ def annotate(args):
 
 
 def detection_json(detection):
+    detection = as_evidence(detection)
     return dict(family=detection.family, id=detection.marker_id, track=detection.track_id,
                 source=detection.source, corrected_bits=detection.corrected_bits,
-                decode_distance=detection.decode_distance, corners=detection.corners.tolist())
+                decode_distance=detection.decode_distance, quality=detection.quality,
+                confirmed=detection.confirmed, corners=detection.corners.tolist())
 
 
 def evaluate(args):

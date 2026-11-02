@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 from lib.printed_tag_template import paper_tags, project_paper
 from lib.tag_dataset import PairDataset, PairRecorder, load_truth
+from lib.tag_evidence import EvidenceDetection as TagDetection
 from lib.tag_metrics import latency_summary, score_frame, summarize_scores
-from lib.tag_sheet_preview import TagDetection
 
 
 def tag(tid=0, offset=0, instance='one'):
@@ -24,6 +24,10 @@ def test_predictions_never_inflate_recognition():
     result = score_frame([detection(source='tracked_only')], [tag()])
     assert (result['tp'], result['fp'], result['fn']) == (0, 0, 1)
     assert result['predictions'] == result['prediction_hits'] == 1
+    candidate = detection(source='decoded_corrected')
+    candidate.confirmed = False
+    result = score_frame([candidate], [tag()])
+    assert result['tp'] == 0 and result['fn'] == 1 and result['tentative'] == 1
 
 
 def test_wrong_id_duplicate_id_and_background_false_positives():
