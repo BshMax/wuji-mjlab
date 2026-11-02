@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Wuji Technology Co., Ltd.
 """Independent scoring, annotation validity, and lossless paired recording."""
+import importlib.util
 import json
+from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -21,6 +24,9 @@ def detection(tid=0, offset=0, source='decoded'):
 
 
 def test_predictions_never_inflate_recognition():
+    from lib.stereo_tag_preview import SheetMissStats
+    predicted = detection(source='tracked_only')
+    assert SheetMissStats('pen', True).update([predicted], [])['views']['left']['miss_current'] == 108
     result = score_frame([detection(source='tracked_only')], [tag()])
     assert (result['tp'], result['fp'], result['fn']) == (0, 0, 1)
     assert result['predictions'] == result['prediction_hits'] == 1
@@ -88,3 +94,31 @@ def test_analytic_templates_have_unique_instances_and_canonical_geometry():
     assert latency_summary([]) is None
     summary = latency_summary([1, 2, 3, 40])
     assert summary['over_33ms_fraction'] == .25
+
+
+def test_cli_replay_always_compares_baseline_on_identical_independent_truth(tmp_path):
+    from lib.tag_fixture import generate_fixture
+    path = Path(__file__).parents[1]/'tools/tag_benchmark.py'
+    spec = importlib.util.spec_from_file_location('benchmark_test', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    truth = generate_fixture(tmp_path/'fixture', frames=5)
+    args = SimpleNamespace(dataset=tmp_path/'fixture', truth=truth, output=tmp_path/'report',
+                           profiles=['ecc1'], warmup=1)
+    module.evaluate(args)
+    result = json.loads((tmp_path/'report/comparison.json').read_text())
+    assert set(result) == {'baseline', 'ecc1'}
+    assert result['ecc1']['real_50cm_validated'] is False
+    assert (tmp_path/'report/comparison.txt').is_file()
+    base = json.loads((tmp_path/'report/baseline.json').read_text())
+    assert base['views']['left']['negative_view_frames'] == 1
+    assert base['skipped_capture_frames'] == 0
+
+
+def test_wrong_direction_and_duplicate_labels_cannot_hide_errors():
+    quad = np.asarray(tag()['corners'], float)
+    wrong_direction = TagDetection('PEN', 0, np.roll(quad, 1, axis=0))
+    score = score_frame([wrong_direction], [tag()])
+    assert score['tp'] == 0 and score['fp'] == score['fn'] == score['wrong_orientation'] == 1
+    score = score_frame([detection(1), detection(0)], [tag()])
+    assert score['tp'] == 1 and score['fp'] == 1 and score['fn'] == 0

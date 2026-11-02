@@ -47,7 +47,7 @@ class SheetMissStats:
         self.epoch += 1
 
     def update(self, left, right):
-        counts = {side: Counter((d.family, d.marker_id) for d in detections)
+        counts = {side: Counter((d.family, d.marker_id) for d in detections if as_evidence(d).verified)
                   for side, detections in (('left', left), ('right', right))}
         if self.measuring:
             self.frames += 1
@@ -94,7 +94,8 @@ def _text(vis, x, y, text, scale=.5):
 def _panel(gray, detections, tracker, side, trails, stats, track_labels=False):
     vis = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
     for detection in detections:
-        color = (255, 220, 0) if detection.family == 'APR36h11' else (0, 255, 0)
+        color = ((0, 165, 255) if not detection.verified else
+                 (255, 220, 0) if detection.family == 'APR36h11' else (0, 255, 0))
         quad = detection.corners.astype(int)
         cv2.polylines(vis, [quad], True, color, 1)
         family = 'APR' if detection.family == 'APR36h11' else 'PEN'
@@ -114,6 +115,9 @@ def _panel(gray, detections, tracker, side, trails, stats, track_labels=False):
     _text(vis, 8, 22, f'{side.upper()} IR{1 if side == "left" else 2} | '
           f'APR={view["april"]} PEN={view["pen"]}')
     _text(vis, 8, 44, f'Current missing={missing}/{expected or "?"} | cumulative miss={rate}')
+    pending = sum(not d.confirmed and d.source != 'tracked_only' for d in detections)
+    predicted = sum(d.source == 'tracked_only' for d in detections)
+    _text(vis, 8, 66, f'Unconfirmed={pending} | prediction-only={predicted} (excluded from recognition)', .43)
     return vis
 
 
@@ -165,6 +169,9 @@ def run_stereo_preview(args, frames, pen_estimator, camera, diagnostics=None):
             if right is None or left.shape != right.shape:
                 raise RuntimeError('Stereo test needs a synchronized left/right image pair of equal size')
             before = time.perf_counter()
+            for detector in detectors:
+                detector.input_time_s = (camera.host_receive_ns/1e9 if getattr(camera, 'host_receive_ns', None)
+                                         else time.monotonic())
             detections = [[as_evidence(d) for d in detector.detect(image)]
                           for detector, image in zip(detectors, (left, right), strict=True)]
             now = time.monotonic()
@@ -175,15 +182,23 @@ def run_stereo_preview(args, frames, pen_estimator, camera, diagnostics=None):
             times.append(now)
             fps = (len(times)-1)/(times[-1]-times[0]) if times[-1] > times[0] else 0.
             count += 1
+            diagnostic_record = None
             if diagnostics is not None:
-                diagnostics.write(json.dumps(dict(
+                diagnostic_record = dict(
                     mode='stereo-detection', source=args.source, detector_profile=profile, t_monotonic_s=now,
                     processing_ms=processing[-1], frame_number=camera.frame_number,
+                    detector_audit=[getattr(d, 'last_audit', {}) for d in detectors],
+                    timestamp_ms=getattr(camera, 'timestamp_ms', None),
+                    timestamp_domain=getattr(camera, 'timestamp_domain', None),
+                    host_receive_ns=getattr(camera, 'host_receive_ns', None),
+                    receive_to_result_ms=((time.perf_counter_ns()-camera.host_receive_ns)/1e6
+                                          if getattr(camera, 'host_receive_ns', None) else None),
                     sync_delta_ms=camera.sync_delta_ms, capture_fps=camera.capture_fps,
                     actual_exposure_us=camera.actual_exposure_us,
                     sync_skips=camera.sync_skips, capture_skips=camera.skipped_frames,
                     left=_serialize(detections[0]), right=_serialize(detections[1]),
-                    stats=latest)) + '\n')
+                    stats=latest)
+            preview_start = time.perf_counter_ns()
             if args.preview:
                 panels = [_panel(image, found, tracker, side, trails, latest, track_labels)
                           for image, found, tracker, side in zip(
@@ -227,6 +242,9 @@ def run_stereo_preview(args, frames, pen_estimator, camera, diagnostics=None):
                         print(f'[stereo tags] exposure unchanged: {exc}', flush=True)
                 if cv2.getWindowProperty(title, cv2.WND_PROP_VISIBLE) < 1:
                     break
+            if diagnostic_record is not None:
+                diagnostic_record['preview_ms'] = (time.perf_counter_ns()-preview_start)/1e6
+                diagnostics.write(json.dumps(diagnostic_record)+'\n')
             if now-report_at >= 2:
                 print(f'[stereo tags] {fps:.1f}/{target_hz:g} Hz | {report(latest)}', flush=True)
                 report_at = now

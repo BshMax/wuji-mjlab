@@ -8,10 +8,11 @@ import cv2
 import numpy as np
 
 from lib.pen_pose import PenTagLayout
+from lib.printed_tag_template import paper_tags
 from lib.tag_dataset import PairRecorder
 
 
-def generate_fixture(directory, frames=45):
+def generate_fixture(directory, frames=45, full_sheet=False):
     layout = PenTagLayout()
     artwork = []
     for tid in range(18):
@@ -20,8 +21,9 @@ def generate_fixture(directory, frames=45):
         tile[20:140, 20:140] = 255
         tile[40:120, 40:120] = 255-core[20:100, 20:100]
         artwork.append((40+tile*(180/255)).astype(np.uint8))
-    metadata = dict(dataset_id=f'synthetic-source-codes-v1:{frames}:{cv2.__version__}', kind='synthetic', scene='mixed',
-                    distance_cm=None, fixture='18 small codes, blur/phase changes and empty tail; NOT full-sheet acceptance',
+    metadata = dict(dataset_id=f'synthetic-source-codes-v3:{frames}:{full_sheet}:{cv2.__version__}', kind='synthetic', scene='mixed',
+                    distance_cm=None, fixture=('108 analytic A4 patches' if full_sheet else '18 small code patches')
+                            + '; blur/phase changes and negative tail; NOT real-distance acceptance',
                     left_K=[[638., 0, 640.], [0, 638., 400.], [0, 0, 1]], left_dist=[0.]*5,
                     right_K=[[638., 0, 640.], [0, 638., 400.], [0, 0, 1]], right_dist=[0.]*5)
     recorder = PairRecorder(directory, metadata)
@@ -36,28 +38,46 @@ def generate_fixture(directory, frames=45):
                 canvas = np.full((800, 1280), 220, np.uint8)
                 tags = []
                 if not negative:
-                    for tid, tile in enumerate(artwork):
+                    for item in (paper_tags('pen') if full_sheet else
+                                 [dict(id=tid, instance=f'patch:{tid}') for tid in range(18)]):
+                        tid, tile = item['id'], artwork[item['id']]
                         x = 180+(tid % 6)*110+math.sin(frame*.2)*4+shift
                         y = 200+(tid // 6)*110+math.cos(frame*.15)*3
                         size = 19.+(frame % 7)*.7  # white detection edge roughly 14..18 px
                         target = np.float32([[x, y], [x+size, y], [x+size, y+size], [x, y+size]])
                         rotation = tid % 4
                         target = np.roll(target, rotation, axis=0)
-                        H = cv2.getPerspectiveTransform(np.float32([[0, 0], [159, 0], [159, 159], [0, 159]]), target)
+                        if full_sheet:
+                            target = (np.asarray(item['corners'])*1.276
+                                      + [400+shift+math.sin(frame*.2)*4, 180+math.cos(frame*.15)*3]).astype(np.float32)
+                            H = cv2.getPerspectiveTransform(
+                                np.float32([[19.5, 19.5], [139.5, 19.5], [139.5, 139.5], [19.5, 139.5]]), target)
+                        else:
+                            H = cv2.getPerspectiveTransform(
+                                np.float32([[0, 0], [159, 0], [159, 159], [0, 159]]), target)
                         # Local rendering avoids making the detector's output a reference.
                         offset = np.floor(target.min(axis=0)-4).astype(int)
                         local = H.copy()
                         local[0] -= offset[0]*local[2]
                         local[1] -= offset[1]*local[2]
                         patch = cv2.warpPerspective(tile, local, (40, 40), borderValue=220)
-                        canvas[offset[1]:offset[1]+40, offset[0]:offset[0]+40] = patch
+                        region = canvas[offset[1]:offset[1]+40, offset[0]:offset[0]+40]
+                        np.minimum(region, patch, out=region)
                         corners = cv2.perspectiveTransform(np.float32([[[19.5, 19.5], [139.5, 19.5],
                                                                       [139.5, 139.5], [19.5, 139.5]]]), H)[0]
-                        tags.append(dict(instance=f'patch:{tid}', family='PEN', id=tid,
+                        tags.append(dict(instance=item['instance'], family='PEN', id=tid,
                                          corners=corners.tolist(), visible=True))
                     sigma = .25+(frame % 5)*.12
                     canvas = cv2.GaussianBlur(canvas, (0, 0), sigma)
                     canvas = np.clip(canvas.astype(float)+rng.normal(0, 2, canvas.shape), 0, 255).astype(np.uint8)
+                else:
+                    # Non-code rectangles and wrong-polarity source artwork are
+                    # stronger negatives than an empty white image.
+                    for item in range(12):
+                        x, y = 80+(item % 6)*160, 180+(item // 6)*160
+                        patch = cv2.resize(255-artwork[item % 18], (32, 32), interpolation=cv2.INTER_AREA)
+                        canvas[y:y+32, x:x+32] = patch
+                        cv2.rectangle(canvas, (x+40, y+10), (x+65, y+40), 30, 2)
                 images.append(canvas)
                 views[side] = dict(reviewed=True, tags=tags, negative_confirmed=negative)
             truth['frames'][str(frame)] = views

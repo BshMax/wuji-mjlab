@@ -55,6 +55,7 @@ def score_frame(detections, truth, threshold=.5):
     wrong_id = sum(any(wrong and index == i for wrong, _, index, _ in choices)
                    for i in range(len(verified)) if i not in used_d)
     tp = wrong_orientation = 0
+    true_indices = []
     corners = []
     matches = []
     for i, j in pairs:
@@ -66,6 +67,7 @@ def score_frame(detections, truth, threshold=.5):
             wrong_orientation += 1
             continue
         tp += 1
+        true_indices.append(i)
         corners.append(errors[0])
         matches.append(dict(instance=tag['instance'], track=detection.track_id,
                             source=detection.source, corner_rmse_px=errors[0]))
@@ -80,6 +82,8 @@ def score_frame(detections, truth, threshold=.5):
     return dict(tp=tp, fp=len(verified)-tp, fn=len(visible)-tp, wrong_id=wrong_id, wrong_orientation=wrong_orientation,
                 predictions=len(predictions), prediction_hits=prediction_hits,
                 tentative=len(tentative), tentative_false_candidates=tentative_false,
+                verified_tp_indices=true_indices,
+                verified_fp_indices=[i for i in range(len(verified)) if i not in true_indices],
                 negative=len(visible) == 0, negative_fp=int(not visible and bool(verified)),
                 corners=corners, matches=matches)
 

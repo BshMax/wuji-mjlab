@@ -163,6 +163,7 @@ class PenPoseEstimator:
         self._missed = 0
         self.collect_rejected = False
         self.last_rejected_quads = []
+        self.batch_border_check = False
 
     def detect(self, gray: np.ndarray, roi=None):
         """Return tags in ROI, with corner coordinates in the original frame."""
@@ -188,13 +189,33 @@ class PenPoseEstimator:
             t = int(tid)
             if t in self.layout.corners:
                 full_quad = quad[0].astype(np.float64) + np.array([x, y])
-                if (self.layout.inverted
+                if (self.layout.inverted and not self.batch_border_check
                         and not self._source_border_matches(gray, full_quad, t)):
                     self.rejected_appearance += 1
                     continue
                 keep_ids.append(t)
                 keep_px.append(full_quad)
+        if self.layout.inverted and self.batch_border_check and keep_ids:
+            mask = self._source_border_mask(gray, keep_px, keep_ids)
+            self.rejected_appearance += int(np.count_nonzero(~mask))
+            keep_ids = [tid for tid, ok in zip(keep_ids, mask, strict=True) if ok]
+            keep_px = [quad for quad, ok in zip(keep_px, mask, strict=True) if ok]
         return keep_ids, keep_px
+
+    def _source_border_mask(self, gray, quads, ids):
+        """Vectorized identical predicate to _source_border_matches (opt-in)."""
+        target = np.float32([[0, 0], [48, 0], [48, 48], [0, 48]])
+        patches = np.asarray([cv2.warpPerspective(gray, cv2.getPerspectiveTransform(
+            np.float32(quad), target), (48, 48)) for quad in quads])
+        cells = patches.reshape(-1, 6, 8, 6, 8).transpose(0, 1, 3, 2, 4)
+        values = np.median(cells[:, :, :, 2:6, 2:6], axis=(3, 4))
+        border = np.concatenate((values[:, 0], values[:, -1],
+                                 values[:, 1:-1, 0], values[:, 1:-1, -1]), axis=1)
+        bits = np.asarray([self.layout.custom_dictionary['patterns'][tid]['bits'] for tid in ids], bool)
+        white = np.median(border, axis=1)
+        black = np.nanmedian(np.where(bits, values[:, 1:5, 1:5], np.nan), axis=(1, 2))
+        return ((white-black >= 15.)
+                & (np.mean(border > ((white+black)/2)[:, None], axis=1) >= .8))
 
     def _source_border_matches(self, gray, quad, tid):
         """Source tags require a WHITE inner border and dark logical-one cells.
