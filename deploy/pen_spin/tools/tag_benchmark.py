@@ -20,7 +20,12 @@ from lib.pen_pose import PenPoseEstimator
 from lib.printed_tag_template import project_paper
 from lib.tag_dataset import PairDataset, PairRecorder, load_truth
 from lib.tag_evidence import as_evidence
-from lib.tag_metrics import latency_summary, score_frame, summarize_scores
+from lib.tag_metrics import (
+    TemporalMetrics,
+    latency_summary,
+    score_frame,
+    summarize_scores,
+)
 from lib.tag_sheet_preview import TagSheetDetector, TagTracker
 
 
@@ -95,7 +100,7 @@ def annotate(args):
     configure_qt_fonts()
     title = 'Independent truth annotation'
     cv2.namedWindow(title, cv2.WINDOW_NORMAL)
-    print('Click PRINTED page TL, TR, BR, BL. c clears; right-click a tag excludes occlusion; '
+    print('Click PRINTED page TL, TR, BR, BL. c clears; right-click marks a fully invisible tag; '
           's saves/reviews this view; n skips; q exits. Detector outputs are never used.', flush=True)
     stop = False
     previous_by_side = {}
@@ -193,6 +198,9 @@ def review(args):
     if args.only_errors:
         rows = [row for row in rows if any(row.get(f'{side}_score', {}).get('fp', 0)
                                           or row.get(f'{side}_score', {}).get('fn', 0)
+                                          or row.get(f'{side}_score', {}).get('tentative_false_candidates', 0)
+                                          or (row.get(f'{side}_score', {}).get('predictions', 0)
+                                              > row.get(f'{side}_score', {}).get('prediction_hits', 0))
                                           for side in ('left', 'right'))]
     if not rows:
         print('No annotated error frames in this result file')
@@ -272,6 +280,7 @@ def evaluate(args):
             detectors = [ExperimentalSheetDetector(est, profile) for est in estimators]
         trackers = [TagTracker(), TagTracker()]
         scores = {'left': [], 'right': []}
+        temporal = {'left': TemporalMetrics(), 'right': TemporalMetrics()}
         timings, details = [], []
         switches, comparisons = {'left': 0, 'right': 0}, {'left': 0, 'right': 0}
         previous_tracks = {'left': {}, 'right': {}}
@@ -305,6 +314,8 @@ def evaluate(args):
                 if reference is not None:
                     score = score_frame(detections, reference[side]['tags'])
                     scores[side].append(score)
+                    temporal[side].update(row['index'], row['host_receive_ns']/1e9,
+                                          detections, reference[side]['tags'], score)
                     for match in score['matches']:
                         previous = previous_tracks[side].get(match['instance'])
                         if previous is not None and previous[1]+1 == row['index']:
@@ -318,6 +329,8 @@ def evaluate(args):
                       distance_cm=dataset.metadata.get('distance_cm'), git_revision=revision,
                       detector_source_sha256=source_hashes,
                       processed_pairs=len(details), annotated_pairs=len(truth['frames']),
+                      input_checksum_coverage=sum(all(f'{side}_sha256' in row for side in ('left', 'right'))
+                                                  for row in dataset.records)/len(dataset.records),
                       recorded_delivery_hz=((len(dataset.records)-1)*1e9
                           /max(dataset.records[-1]['host_receive_ns']-dataset.records[0]['host_receive_ns'], 1)),
                       skipped_capture_frames=sum(max(0, b['frame_number']-a['frame_number']-1)
@@ -328,7 +341,8 @@ def evaluate(args):
                       timing_scope='paired detection + correction + tracking + validation; '
                                    'excludes disk decode, GT scoring, preview and capture; NOT sensor-to-display latency',
                       processing_latency=latency_summary(timings),
-                      views={side: dict(summarize_scores(rows), identity_switches=switches[side],
+                      views={side: dict(summarize_scores(rows), **temporal[side].summary(),
+                                       identity_switches=switches[side],
                                        identity_comparisons=comparisons[side],
                                        identity_switch_rate=switches[side]/comparisons[side] if comparisons[side] else None)
                              for side, rows in scores.items()},

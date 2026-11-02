@@ -7,6 +7,7 @@ than silently dropping frames. Annotations are independent of detector outputs.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import queue
 import threading
@@ -63,10 +64,13 @@ class PairRecorder:
                         if image.ndim != 2 or image.dtype != np.uint8:
                             raise ValueError('Dataset images must be raw Y8 grayscale')
                         relative = f'{side}/{record["index"]:06d}.png'
-                        if not cv2.imwrite(str(self.directory / relative), image,
-                                           [cv2.IMWRITE_PNG_COMPRESSION, 1]):
+                        ok, encoded = cv2.imencode('.png', image, [cv2.IMWRITE_PNG_COMPRESSION, 1])
+                        if not ok:
                             raise OSError(f'Failed to write {relative}')
+                        data = encoded.tobytes()
+                        (self.directory / relative).write_bytes(data)
                         record[side] = relative
+                        record[f'{side}_sha256'] = hashlib.sha256(data).hexdigest()
                     manifest.write(json.dumps(record) + '\n')
         except Exception as exc:
             self.error = exc
@@ -106,9 +110,15 @@ class PairDataset:
             path = (self.directory / record[side]).resolve()
             if not path.is_relative_to(self.directory.resolve()):
                 raise ValueError('Image path escapes dataset')
-            image = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+            data = path.read_bytes()
+            expected = record.get(f'{side}_sha256')
+            if expected is not None and hashlib.sha256(data).hexdigest() != expected:
+                raise ValueError(f'Image checksum mismatch: {path}')
+            image = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_UNCHANGED)
             if image is None:
                 raise ValueError(f'Missing/corrupt image: {path}')
+            if image.ndim != 2 or image.dtype != np.uint8:
+                raise ValueError('Recorded source must be raw Y8, not converted RGB or 16-bit data')
             result.append(image)
         if result[0].shape != result[1].shape:
             raise ValueError('Stereo image dimensions differ')

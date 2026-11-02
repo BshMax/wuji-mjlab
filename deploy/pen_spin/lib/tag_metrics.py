@@ -76,9 +76,16 @@ def score_frame(detections, truth, threshold=.5):
     tentative_false = sum(not any(quad_iou(d.corners, t['corners']) >= threshold
                                   and (d.family, d.marker_id) == (t['family'], t['id'])
                                   for t in visible) for d in tentative)
-    prediction_hits = sum(any(quad_iou(d.corners, t['corners']) >= threshold
-                              and (d.family, d.marker_id) == (t['family'], t['id'])
-                              for t in visible) for d in predictions)
+    prediction_matches = sorted(
+        ((quad_iou(d.corners, t['corners']), i, j)
+         for i, d in enumerate(predictions) for j, t in enumerate(visible)
+         if (d.family, d.marker_id) == (t['family'], t['id'])), reverse=True)
+    used_predictions, used_prediction_truth = set(), set()
+    for overlap, i, j in prediction_matches:
+        if overlap >= threshold and i not in used_predictions and j not in used_prediction_truth:
+            used_predictions.add(i)
+            used_prediction_truth.add(j)
+    prediction_hits = len(used_predictions)
     return dict(tp=tp, fp=len(verified)-tp, fn=len(visible)-tp, wrong_id=wrong_id, wrong_orientation=wrong_orientation,
                 predictions=len(predictions), prediction_hits=prediction_hits,
                 tentative=len(tentative), tentative_false_candidates=tentative_false,
@@ -109,3 +116,66 @@ def latency_summary(values):
     return dict(zip(('p50_ms', 'p95_ms', 'p99_ms', 'max_ms'),
                     map(float, [*np.percentile(values, [50, 95, 99]), max(values)]), strict=True),
                 over_33ms_fraction=float(np.mean(np.asarray(values) > 33.)))
+
+
+class TemporalMetrics:
+    """Only reviewed consecutive frames support gap/persistent-error measures."""
+
+    def __init__(self):
+        self.last_index = None
+        self.adjacent = 0
+        self.targets = {}
+        self.false_tracks = {}
+        self.max_miss_frames = 0
+        self.max_gap_ms = 0.
+        self.max_false_frames = 0
+        self.max_false_span_ms = 0.
+        self.reacquisitions = []
+
+    def update(self, index, timestamp_s, detections, truth, score):
+        consecutive = self.last_index is not None and index == self.last_index+1
+        if not consecutive:
+            self.targets.clear()
+            self.false_tracks.clear()
+        else:
+            self.adjacent += 1
+        self.last_index = index
+        matches = {m['instance'] for m in score['matches']}
+        current = {}
+        for tag in truth:
+            if not tag.get('visible', True):
+                continue
+            instance = tag['instance']
+            old = self.targets.get(instance, dict(last_good=timestamp_s, misses=0))
+            if instance in matches:
+                if old['misses']:
+                    gap = (timestamp_s-old['last_good'])*1000
+                    self.reacquisitions.append(gap)
+                    self.max_gap_ms = max(self.max_gap_ms, gap)
+                current[instance] = dict(last_good=timestamp_s, misses=0)
+            else:
+                missed = old['misses']+1
+                self.max_miss_frames = max(self.max_miss_frames, missed)
+                self.max_gap_ms = max(self.max_gap_ms, (timestamp_s-old['last_good'])*1000)
+                current[instance] = dict(last_good=old['last_good'], misses=missed)
+        self.targets = current
+        verified = [as_evidence(d) for d in detections if as_evidence(d).verified]
+        false_now = {}
+        for i in score['verified_fp_indices']:
+            detection = verified[i]
+            key = (detection.family, detection.marker_id, detection.track_id)
+            start, count = self.false_tracks.get(key, (timestamp_s, 0))
+            false_now[key] = (start, count+1)
+            self.max_false_frames = max(self.max_false_frames, count+1)
+            self.max_false_span_ms = max(self.max_false_span_ms, (timestamp_s-start)*1000)
+        self.false_tracks = false_now
+
+    def summary(self):
+        known = self.adjacent > 0
+        return dict(reviewed_adjacent_pairs=self.adjacent,
+                    max_visible_miss_run_frames=self.max_miss_frames if known else None,
+                    max_recognition_gap_ms=self.max_gap_ms if known else None,
+                    reacquisition_p95_ms=float(np.percentile(self.reacquisitions, 95))
+                    if known and self.reacquisitions else None,
+                    max_false_track_run_frames=self.max_false_frames if known else None,
+                    max_false_track_observed_span_ms=self.max_false_span_ms if known else None)

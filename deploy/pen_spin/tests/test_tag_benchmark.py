@@ -122,3 +122,33 @@ def test_wrong_direction_and_duplicate_labels_cannot_hide_errors():
     assert score['tp'] == 0 and score['fp'] == score['fn'] == score['wrong_orientation'] == 1
     score = score_frame([detection(1), detection(0)], [tag()])
     assert score['tp'] == 1 and score['fp'] == 1 and score['fn'] == 0
+
+
+def test_temporal_metrics_require_reviewed_adjacency_and_count_real_decode_gaps():
+    from lib.tag_metrics import TemporalMetrics
+    metrics = TemporalMetrics()
+    sequence = [[detection()], [detection(source='tracked_only')], [], [detection()]]
+    for index, found in enumerate(sequence):
+        metrics.update(index, index/30, found, [tag()], score_frame(found, [tag()]))
+    report = metrics.summary()
+    assert report['max_visible_miss_run_frames'] == 2
+    assert report['max_recognition_gap_ms'] == pytest.approx(100)
+    assert report['reacquisition_p95_ms'] == pytest.approx(100)
+    sparse = TemporalMetrics()
+    for index in (0, 30):
+        sparse.update(index, index/30, [], [tag()], score_frame([], [tag()]))
+    assert sparse.summary()['max_recognition_gap_ms'] is None
+
+
+def test_prediction_duplicate_and_checksum_do_not_create_false_confidence(tmp_path):
+    predicted = detection(source='tracked_only')
+    result = score_frame([predicted, predicted], [tag()])
+    assert result['prediction_hits'] == 1 and result['tp'] == 0
+    writer = PairRecorder(tmp_path/'checked', dict(dataset_id='checked', kind='real'))
+    writer.append(np.zeros((8, 8), np.uint8), np.zeros((8, 8), np.uint8), {})
+    writer.close()
+    dataset = PairDataset(tmp_path/'checked')
+    path = tmp_path/'checked'/dataset.records[0]['left']
+    path.write_bytes(path.read_bytes()+b'changed')
+    with pytest.raises(ValueError, match='checksum'):
+        dataset.images(dataset.records[0])

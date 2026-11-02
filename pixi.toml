@@ -98,3 +98,5 @@ pen-tag-test-50 = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py 
 
 pen-tag-test-stereo = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --source realsense --detect-only --stereo --preview --detect-hz 30 --camera-config deploy/pen_spin/config/realsense_sheet_max.yaml", description = "Highest-resolution paired IR sheet test: 1280x800 per view at up to 30 Hz" }
 pen-tag-test-stereo-50 = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --source realsense --detect-only --stereo --preview --detect-hz 50 --camera-config deploy/pen_spin/config/realsense_sheet_50.yaml", description = "Paired IR comparison profile: 848x480 at up to 50 detection Hz" }
+
+pen-tag-benchmark = { cmd = "python deploy/pen_spin/tools/tag_benchmark.py", description = "Record raw IR pairs, annotate independent A4 truth, compare detector stages and review false detections" }
