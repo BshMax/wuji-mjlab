@@ -25,6 +25,7 @@ cd /home/psy/unitree/wuji-mjlab
 相机适配器（Adapter，负责统一不同相机的取图结果）入口为 `lib/camera_sources.py`，支持：
 
 - `realsense`：保留 D435/D435i 双红外，真实内参、硬件时间及同步属性。
+- `mindvision`：通过所提供 CameraSDK.zip 的 MVSDK 接入迈德威视相机，支持单路灰度采集、型号/能力查询、曝光按键、录制和离线评测。详见下节。
 - `opencv`：支持通用 UVC（USB Video Class，USB 视频设备标准）设备索引或设备路径，可单路，也可两个独立设备。两台普通 USB 相机不会被宣称为同步双目。
 - `python`：专用厂商 SDK 可通过可信本地 `module:factory` 适配器接入；具体设备未确定前，不声称已经支持其专有协议。
 
@@ -42,6 +43,51 @@ cd /home/psy/unitree/wuji-mjlab
 保持窗口运行时，可修改同一个 `--camera-config` 文件，然后按 `k`：保存当前片段、释放旧设备、重读配置并打开新设备，重置检测状态。相机不可用时可修复连接后按 `k` 重试，或 `q` 退出；原生 SDK 进程级崩溃仍需重新运行程序。
 
 专用 SDK 插件 YAML 示例：`camera: {backend: python, adapter: my_camera_adapter:open_camera}`。工厂接收配置并返回上下文管理器，提供 `describe()`、`frames()`、`close()`；可选 `adjust_exposure(factor)`。`describe()` 声明真实 `views: [left]` 或 `[left, right]`、backend、pairing、每路 K/dist（未知为 null）；`frames()` 返回 `CameraFrame(images={...}, metadata={frame_number, host_receive_ns, ...})`。图像必须是原始 8 位灰度；同步、快门、转换方式和时间域必须如实声明。新型号到手后只需实现该适配层并用真实硬件验证。
+
+## MindVision CameraSDK.zip 专用接入
+
+SDK（Software Development Kit，软件开发工具包）使用压缩包中原始 `mvsdk.py` 和当前架构的 `libMVSDK.so`。原始厂商文件保存在用户目录，不提交进 Git。安装工具只提取固定文件，记录 SHA-256 校验和，不运行包内安装脚本，不复制系统库，不改 USB 权限。
+
+```bash
+cd /home/psy/unitree/wuji-mjlab
+# 当前电脑已安装；换电脑时执行一次：
+.pixi/envs/pen-spin-deploy/bin/python deploy/pen_spin/tools/mindvision_sdk.py install /home/psy/Downloads/CameraSDK.zip
+
+# 插入新相机后查询型号、序列号：
+.pixi/envs/pen-spin-deploy/bin/python deploy/pen_spin/tools/mindvision_sdk.py list
+# 查询传感器最大尺寸、可用分辨率、帧速模式、曝光范围，并保存结果：
+.pixi/envs/pen-spin-deploy/bin/python deploy/pen_spin/tools/mindvision_sdk.py inspect \
+  --camera-config deploy/pen_spin/config/camera_mindvision.yaml \
+  --output outputs/mindvision/capabilities.json
+
+# 常开预览与按键录制：
+.pixi/envs/pen-spin-deploy/bin/python deploy/pen_spin/tools/tag_benchmark.py record outputs/tag_eval/mindvision_01 \
+  --camera-config deploy/pen_spin/config/camera_mindvision.yaml --distance-cm 50
+```
+
+点击窗口，先按 `d` 开检测；确认整页 A4 可见后按 `s` 录制，按 `p` 保存暂停，按 `q` 保存并退出。`2` 选择笔贴页，`3` 选择腕部页；`0` 切到负样本，`1` 回到正样本。改变检测、曝光或纸型会先保存并暂停，之后重新按 `s`。`+`/`-` 将真实传感器曝光加倍/减半，并读取实际值；调节边界按 SDK 报告的范围裁剪。按 `k` 释放设备并重读当前 YAML。多个同品牌相机时须在 YAML 填入查询到的 `serial`，避免选错相机。
+
+默认选择没有软件缩放的最大分辨率预设，并核对设置回读和每帧尺寸。若同尺寸有多个不同视场预设，用 `resolution_index` 固定目标模式；标定也必须匹配这一模式。`frame_speed` 是厂商枚举的**模式编号，不是 Hz**，不把 mode 1 写成 1 FPS，也不把 30 Hz 写成 mode 30。当前保留 SDK 的帧速模式，可在 `inspect` 后选择合适编号；实际交付速率由录制的主机收帧时间统计。尚未连接具体型号时，不能保证最大尺寸下能达到 30 Hz，也不能从这个通用 SDK 推断全局快门。
+
+黑白型号使用 SDK 的 MONO8 输出；彩色型号经 SDK 转 BGR8 后转灰度，不进行显示缩放后再检测。保存的 PNG 是检测输入灰度图，不是传感器 Bayer/高位深 RAW。SDK 的镜像、旋转和内置去畸变会关闭（设备不支持则记录为不适用），防止继承别的软件的图像几何设置；Gamma、对比度、锐化、查找表模式及 RGB 增益的回读值写入片段元数据，便于对照。
+
+帧日志保存设备时间（帧头 `uiTimeStamp`，单位 0.1 ms，处理 32 位回绕）、主机收帧时刻、该帧实际曝光与模拟增益、SDK 转换耗时。帧编号是软件收帧索引，不能据此统计硬件掉帧。默认 `buffer_policy: newest` 取最新缓存帧，旧缓存帧可能被 SDK 丢弃，数量未知，不记成零；可选 `oldest` 按缓存顺序取图，但处理跟不上时可能积累延迟。设备与主机时钟未对齐，不据此声称已测得传感器到屏幕的总延迟。离线报告的漏检指已记录且审核过的图像上的算法漏检。
+
+未标定时即可做 `baseline` 二维标签检测、跟踪编号与录制；真实内参保持 `null`。不要复用 D435 的内参。实验版本和三维位姿需要这台相机、当前镜头和分辨率模式的标定。本次接入面向 A4 采集评测入口，正式转笔三维观测程序尚未绑定这台未知型号。
+
+录完按同一条基线流程评测（单相机只需审核一侧）：
+
+```bash
+.pixi/envs/pen-spin-deploy/bin/python deploy/pen_spin/tools/tag_benchmark.py annotate outputs/tag_eval/mindvision_01/clip_0001 \
+  --output outputs/tag_eval/mindvision_01/clip_0001/truth.json --sheet pen --stride 30
+.pixi/envs/pen-spin-deploy/bin/python deploy/pen_spin/tools/tag_benchmark.py evaluate outputs/tag_eval/mindvision_01/clip_0001 \
+  --truth outputs/tag_eval/mindvision_01/clip_0001/truth.json --profiles baseline \
+  --output outputs/tag_eval/mindvision_report_01
+```
+
+`--stride 30` 先验证标注流程；逐帧验收改用 `--stride 1`。真值需要人工审核，预测框不计识别成功。负样本先按 `0`，按 `s` 录制无标签背景后保存；确认整段没有支持的标签，再用 `annotate ... --negative-all` 标注，之后同样 `evaluate` 才能统计负样本误检率。
+
+排查连接：`list` 输出 `devices: []` 表示 SDK 没找到可用新相机，并不表示 D435 能由此 SDK 驱动。厂商库可能额外打印 CXP/采集卡诊断；保存的 JSON 是本工具结果。若 `lsusb` 能看到新设备而 SDK 无法访问，先检查设备占用和当前 USB 节点读写权限，再按实际供应商 ID 配置权限；不要直接运行包内含不完整规则的安装脚本。发生 SDK 超时/设置失败会结束当前片段并标为不完整，修复后按 `k` 重连，避免悄悄改模式继续录。
 
 ## 1. 准备与一次性设置
 

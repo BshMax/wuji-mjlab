@@ -201,6 +201,9 @@ def open_camera(config):
     backend = config.get('camera', {}).get('backend', 'realsense')
     if backend == 'realsense':
         return RealSenseSource(config)
+    if backend == 'mindvision':
+        from lib.mindvision_camera import MindVisionSource
+        return MindVisionSource(config)
     if backend == 'opencv':
         return OpenCVSource(config)
     if backend == 'python':
@@ -212,4 +215,4 @@ def open_camera(config):
         if not callable(factory):
             raise ValueError('Camera adapter factory is not callable')
         return factory(config)
-    raise ValueError(f'Unknown camera backend {backend!r}; select realsense, opencv, or python')
+    raise ValueError(f'Unknown camera backend {backend!r}; select realsense, mindvision, opencv, or python')

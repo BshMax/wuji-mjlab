@@ -1,0 +1,18 @@
+# MindVision MVSDK. Run tools/mindvision_sdk.py inspect to learn actual model/modes.
+# This is one physical camera; no synthetic second view or assumed global shutter.
+camera:
+  backend: mindvision
+  sdk_root: ~/.local/opt/mindvision/CameraSDK
+  serial: null              # automatic only when exactly one camera is connected
+  device_index: null        # prefer serial when multiple cameras are connected
+  views: mono
+  width: null               # null/null selects largest preset without software zoom
+  height: null
+  resolution_index: null    # choose a specific native preset if sizes are ambiguous
+  frame_speed: null         # SDK mode INDEX, not FPS; null retains SDK's current mode
+  auto_exposure: false
+  exposure_us: 5000         # actual sensor integration time; checked against SDK range
+  analog_gain: null         # SDK integer units, NOT dB; null retains current gain
+  buffer_policy: newest     # stale buffered frames discarded; discard count is unknown
+  timeout_ms: 1000          # timeout ends clip as incomplete; k retries after fixing device
+calibration: {}             # add measured left width/height/K/dist; no D435 intrinsics reused
