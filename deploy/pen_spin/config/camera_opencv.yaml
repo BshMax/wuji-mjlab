@@ -1,0 +1,11 @@
+# Generic OpenCV/UVC entry. Select a device index or stable /dev/v4l/by-id path.
+# No global shutter, hardware timestamps, or calibration are assumed.
+camera:
+  backend: opencv
+  device: 0
+  right_device: null  # optional second independent device; not hardware synchronized
+  width: null        # null keeps the driver's native mode
+  height: null
+  fps: null
+  strict_profile: true
+calibration: {}      # add measured left/right width, height, K and dist when available

@@ -21,8 +21,11 @@ class PairRecorder:
     def __init__(self, directory, metadata):
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=False)
-        (self.directory / 'left').mkdir()
-        (self.directory / 'right').mkdir()
+        self.views = metadata.get('views', ['left', 'right'])
+        if self.views not in (['left'], ['left', 'right']):
+            raise ValueError('Dataset views must be left or left+right; mono is never duplicated')
+        for side in self.views:
+            (self.directory / side).mkdir()
         self.metadata = dict(schema_version=1, complete=False, **metadata)
         self._write_metadata()
         self.queue = queue.Queue(maxsize=16)
@@ -40,9 +43,13 @@ class PairRecorder:
             raise RuntimeError('Recorder is closed')
         if self.error is not None:
             raise RuntimeError(f'Dataset writer failed: {self.error}') from self.error
+        if 'right' in self.views and right is None:
+            raise ValueError('A paired recording needs an actual right image')
+        if 'right' not in self.views and right is not None:
+            raise ValueError('Mono recording must not contain a fabricated second view')
         record = dict(metadata, index=self.count)
         try:
-            item = (left.copy(), right.copy(), record)
+            item = (left.copy(), None if right is None else right.copy(), record)
             if wait:
                 self.queue.put(item, timeout=30)  # offline fixture generation only
             else:
@@ -60,7 +67,9 @@ class PairRecorder:
                     if item is None:
                         return
                     left, right, record = item
-                    for side, image in (('left', left), ('right', right)):
+                    images = dict(left=left, right=right)
+                    for side in self.views:
+                        image = images[side]
                         if image.ndim != 2 or image.dtype != np.uint8:
                             raise ValueError('Dataset images must be raw Y8 grayscale')
                         relative = f'{side}/{record["index"]:06d}.png'
@@ -95,9 +104,14 @@ class PairRecorder:
 class PairDataset:
     def __init__(self, directory):
         self.directory = Path(directory)
+        if (self.directory/'capture_session.json').exists() and not (self.directory/'session.json').exists():
+            raise ValueError('Select a recorded clip such as clip_0001, not the capture-session root folder')
         self.metadata = json.loads((self.directory / 'session.json').read_text())
         if self.metadata.get('schema_version') != 1 or not self.metadata.get('complete'):
             raise ValueError('Unsupported or incomplete dataset; do not evaluate a partial capture')
+        self.views = self.metadata.get('views', ['left', 'right'])
+        if self.views not in (['left'], ['left', 'right']):
+            raise ValueError('Unsupported dataset view layout')
         self.records = [json.loads(line) for line in (self.directory / 'frames.jsonl').read_text().splitlines()]
         if not self.records or len(self.records) != self.metadata['frame_count']:
             raise ValueError('Empty dataset or frame manifest length mismatch')
@@ -106,7 +120,7 @@ class PairDataset:
 
     def images(self, record):
         result = []
-        for side in ('left', 'right'):
+        for side in self.views:
             path = (self.directory / record[side]).resolve()
             if not path.is_relative_to(self.directory.resolve()):
                 raise ValueError('Image path escapes dataset')
@@ -120,7 +134,8 @@ class PairDataset:
             if image.ndim != 2 or image.dtype != np.uint8:
                 raise ValueError('Recorded source must be raw Y8, not converted RGB or 16-bit data')
             result.append(image)
-        if result[0].shape != result[1].shape:
+        if (len(result) == 2 and result[0].shape != result[1].shape
+                and self.metadata.get('pairing', 'hardware-paired') == 'hardware-paired'):
             raise ValueError('Stereo image dimensions differ')
         return result
 
@@ -139,7 +154,7 @@ def load_truth(dataset, path):
     for key, views in entries.items():
         if not key.isdigit() or not 0 <= int(key) < len(dataset.records):
             raise ValueError('Annotation frame index outside dataset')
-        for side in ('left', 'right'):
+        for side in dataset.views:
             if side not in views or not views[side].get('reviewed'):
                 raise ValueError(f'Annotation {key}/{side} is unreviewed')
             tags = views[side].get('tags', [])
