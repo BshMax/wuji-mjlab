@@ -1,0 +1,307 @@
+<mujoco model="MuJoCo Model">
+  <compiler angle="radian"/>
+<visual><global offwidth="1600" offheight="1200"/></visual>
+
+  <default>
+    <default class="z5_main">
+      <joint armature="0.001" damping="0.05" frictionloss="0.01"/>
+      <general biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+      <default class="z5_visual">
+        <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.79216 0.81961 0.93333 1"/>
+      </default>
+      <default class="z5_collision">
+        <geom type="mesh" group="3" density="0" rgba="0.79216 0.81961 0.93333 1"/>
+      </default>
+      <default class="z5_reference">
+        <site size="0.0015 0.005 0.005" group="4" rgba="0.1 1 0.1 1"/>
+      </default>
+    </default>
+  </default>
+
+  <asset>    <mesh name="wrist_tag_mount" file="../../../unitree_z5/wrist_tag_mount.STL"/>
+<mesh name="z5_palm_link_visual" file="../../../unitree_z5/meshes/visual/palm_link.STL"/>
+    <mesh name="z5_palm_link_collision" file="../../../unitree_z5/meshes/collision/palm_link.STL"/>
+    <mesh name="z5_right_thumb_pitch_link_visual" file="../../../unitree_z5/meshes/visual/right_thumb_pitch_link.STL"/>
+    <mesh name="z5_right_thumb_pitch_link_collision" file="../../../unitree_z5/meshes/collision/right_thumb_pitch_link.STL"/>
+    <mesh name="z5_right_thumb_roll_link_visual" file="../../../unitree_z5/meshes/visual/right_thumb_roll_link.STL"/>
+    <mesh name="z5_right_thumb_roll_link_collision" file="../../../unitree_z5/meshes/collision/right_thumb_roll_link.STL"/>
+    <mesh name="z5_right_thumb_yaw1_link_visual" file="../../../unitree_z5/meshes/visual/right_thumb_yaw1_Link.STL"/>
+    <mesh name="z5_right_thumb_yaw1_link_collision" file="../../../unitree_z5/meshes/collision/right_thumb_yaw1_Link.STL"/>
+    <mesh name="z5_right_thumb_yaw2_link_visual" file="../../../unitree_z5/meshes/visual/right_thumb_yaw2_link.STL"/>
+    <mesh name="z5_right_thumb_yaw2_link_collision" file="../../../unitree_z5/meshes/collision/right_thumb_yaw2_link.STL"/>
+    <mesh name="z5_right_thumb_yaw3_link_visual" file="../../../unitree_z5/meshes/visual/right_thumb_yaw3_link.STL"/>
+    <mesh name="z5_right_thumb_yaw3_link_collision" file="../../../unitree_z5/meshes/collision/right_thumb_yaw3_link.STL"/>
+    <mesh name="z5_right_index_finger_roll1_link_visual" file="../../../unitree_z5/meshes/visual/right_index finger_roll1_link.STL"/>
+    <mesh name="z5_right_index_finger_roll1_link_collision" file="../../../unitree_z5/meshes/collision/right_index finger_roll1_link.STL"/>
+    <mesh name="z5_right_index_finger_yaw_link_visual" file="../../../unitree_z5/meshes/visual/right_index finger_yaw_link.STL"/>
+    <mesh name="z5_right_index_finger_yaw_link_collision" file="../../../unitree_z5/meshes/collision/right_index finger_yaw_link.STL"/>
+    <mesh name="z5_right_index_finger_roll2_link_visual" file="../../../unitree_z5/meshes/visual/right_index finger_roll2_link.STL"/>
+    <mesh name="z5_right_index_finger_roll2_link_collision" file="../../../unitree_z5/meshes/collision/right_index finger_roll2_link.STL"/>
+    <mesh name="z5_right_index_finger_roll3_link_visual" file="../../../unitree_z5/meshes/visual/right_index finger_roll3_link.STL"/>
+    <mesh name="z5_right_index_finger_roll3_link_collision" file="../../../unitree_z5/meshes/collision/right_index finger_roll3_link.STL"/>
+    <mesh name="z5_right_middle_finger_roll1_link_visual" file="../../../unitree_z5/meshes/visual/right_middle finger_roll1_link.STL"/>
+    <mesh name="z5_right_middle_finger_roll1_link_collision" file="../../../unitree_z5/meshes/collision/right_middle finger_roll1_link.STL"/>
+    <mesh name="z5_right_middle_finger_yaw_link_visual" file="../../../unitree_z5/meshes/visual/right_middle finger_yaw_link.STL"/>
+    <mesh name="z5_right_middle_finger_yaw_link_collision" file="../../../unitree_z5/meshes/collision/right_middle finger_yaw_link.STL"/>
+    <mesh name="z5_right_middle_finger_roll2_link_visual" file="../../../unitree_z5/meshes/visual/right_middle finger_roll2_link.STL"/>
+    <mesh name="z5_right_middle_finger_roll2_link_collision" file="../../../unitree_z5/meshes/collision/right_middle finger_roll2_link.STL"/>
+    <mesh name="z5_right_middle_finger_roll3_link_visual" file="../../../unitree_z5/meshes/visual/right_middle finger_roll3_link.STL"/>
+    <mesh name="z5_right_middle_finger_roll3_link_collision" file="../../../unitree_z5/meshes/collision/right_middle finger_roll3_link.STL"/>
+    <mesh name="z5_right_ring_finger_roll1_link_visual" file="../../../unitree_z5/meshes/visual/right_ring finger_roll1_link.STL"/>
+    <mesh name="z5_right_ring_finger_roll1_link_collision" file="../../../unitree_z5/meshes/collision/right_ring finger_roll1_link.STL"/>
+    <mesh name="z5_right_ring_finger_yaw_link_visual" file="../../../unitree_z5/meshes/visual/right_ring finger_yaw_link.STL"/>
+    <mesh name="z5_right_ring_finger_yaw_link_collision" file="../../../unitree_z5/meshes/collision/right_ring finger_yaw_link.STL"/>
+    <mesh name="z5_right_ring_finger_roll2_link_visual" file="../../../unitree_z5/meshes/visual/right_ring finger_roll2_link.STL"/>
+    <mesh name="z5_right_ring_finger_roll2_link_collision" file="../../../unitree_z5/meshes/collision/right_ring finger_roll2_link.STL"/>
+    <mesh name="z5_right_ring_finger_roll3_link_visual" file="../../../unitree_z5/meshes/visual/right_ring finger_roll3_link.STL"/>
+    <mesh name="z5_right_ring_finger_roll3_link_collision" file="../../../unitree_z5/meshes/collision/right_ring finger_roll3_link.STL"/>
+    <mesh name="z5_right_little_finger_pitch_link_visual" file="../../../unitree_z5/meshes/visual/right_little finger_pitch_link.STL"/>
+    <mesh name="z5_right_little_finger_pitch_link_collision" file="../../../unitree_z5/meshes/collision/right_little finger_pitch_link.STL"/>
+    <mesh name="z5_right_little_finger_roll1_link_visual" file="../../../unitree_z5/meshes/visual/right_little finger_roll1_link.STL"/>
+    <mesh name="z5_right_little_finger_roll1_link_collision" file="../../../unitree_z5/meshes/collision/right_little finger_roll1_link.STL"/>
+    <mesh name="z5_right_little_finger_yaw_link_visual" file="../../../unitree_z5/meshes/visual/right_little finger_yaw_link.STL"/>
+    <mesh name="z5_right_little_finger_yaw_link_collision" file="../../../unitree_z5/meshes/collision/right_little finger_yaw_link.STL"/>
+    <mesh name="z5_right_little_finger_roll2_link_visual" file="../../../unitree_z5/meshes/visual/right_little finger_roll2_link.STL"/>
+    <mesh name="z5_right_little_finger_roll2_link_collision" file="../../../unitree_z5/meshes/collision/right_little finger_roll2_link.STL"/>
+    <mesh name="z5_right_little_finger_roll3_link_visual" file="../../../unitree_z5/meshes/visual/right_little finger_roll3_link.STL"/>
+    <mesh name="z5_right_little_finger_roll3_link_collision" file="../../../unitree_z5/meshes/collision/right_little finger_roll3_link.STL"/>
+  </asset>
+
+  <worldbody>
+    <geom name="floor" size="0 0 0.01" pos="0 0 -0.106209" type="plane" rgba="0.5 0.5 0.5 0.4"/>
+    <light pos="0.5 -0.5 1" dir="-0.408248 0.408248 -0.816497" type="directional" diffuse="0.9 0.9 0.9"/>
+    <light pos="-0.5 0.3 0.8" dir="0.481543 -0.240772 -0.842701" type="directional" diffuse="0.5 0.5 0.5"/>
+    <body name="z5_mount" quat="0.499998 -0.5 -0.500002 -0.5">
+  <body name="wrist_mount" quat="0 0.7071 0 0.7071" pos="-0.07007 0.00163 0.0557">
+    <geom type="mesh" mesh="wrist_tag_mount" rgba="0.85 0.8 0.72 1" contype="0" conaffinity="0"/>
+    <geom name="tag_face_marker" type="box" size="0.032 0.025 0.001" pos="-0.1094 0 0.09507" rgba="0.05 0.05 0.05 0.9" contype="0" conaffinity="0"/>
+  </body>
+      <body name="z5_palm_link" quat="0.499998 0.5 0.500002 0.5">
+        <inertial pos="0.00686796 0.0550604 -0.00171513" quat="0.553699 0.447132 -0.540823 0.448331" mass="0.168838" diaginertia="0.000158828 0.000123424 5.37679e-05"/>
+        <geom name="z5_palm_link_visual" class="z5_visual" mesh="z5_palm_link_visual"/>
+        <geom name="z5_palm_link_collision" class="z5_collision" mesh="z5_palm_link_collision"/>
+        <geom name="px" size="0.002 0.03" pos="0.03 0 0" quat="0.707107 0 0.707107 0" type="cylinder" contype="0" conaffinity="0" rgba="1 0 0 1"/>
+        <geom name="py" size="0.002 0.03" pos="0 0.03 0" quat="0.707107 0.707107 0 0" type="cylinder" contype="0" conaffinity="0" rgba="0 1 0 1"/>
+        <geom name="pz" size="0.002 0.03" pos="0 0 0.03" type="cylinder" contype="0" conaffinity="0" rgba="0 0 1 1"/>
+        <site name="z5_palm_reference_site" class="z5_reference" pos="0 0 0"/>
+        <site name="palm_o" pos="0 0 0" size="0.004" rgba="1 0 1 1"/>
+        <body name="z5_right_thumb_pitch_link" pos="0.022131 0.040091 0" quat="0.995805 0 0 -0.0915018">
+          <inertial pos="-0.00130377 -0.0220228 -8.928e-05" quat="0.72494 0.687725 0.031259 -0.0227736" mass="0.020095" diaginertia="2.34097e-06 2.22296e-06 8.76066e-07"/>
+          <joint name="z5_right_thumb_pitch_joint" pos="0 0 0" axis="0 -1 0" range="0 1.57" actuatorfrcrange="-1.5 1.5" armature="0.001" damping="0.05" frictionloss="0.01"/>
+          <geom name="z5_right_thumb_pitch_link_visual" class="z5_visual" mesh="z5_right_thumb_pitch_link_visual"/>
+          <geom name="z5_right_thumb_pitch_link_collision" class="z5_collision" mesh="z5_right_thumb_pitch_link_collision"/>
+          <body name="z5_right_thumb_roll_link" pos="-0.008 -0.0151 0">
+            <inertial pos="0.0169675 0.00393146 0.00105164" quat="0.597556 0.530967 0.452335 0.395465" mass="0.0174322" diaginertia="2.00713e-06 1.77728e-06 9.1559e-07"/>
+            <joint name="z5_right_thumb_roll_joint" pos="0 0 0" axis="-1 0 0" range="-1.57 0.13" actuatorfrcrange="-1.5 1.5" armature="0.001" damping="0.05" frictionloss="0.01"/>
+            <geom name="z5_right_thumb_roll_link_visual" class="z5_visual" mesh="z5_right_thumb_roll_link_visual"/>
+            <geom name="z5_right_thumb_roll_link_collision" class="z5_collision" mesh="z5_right_thumb_roll_link_collision"/>
+            <site name="z5_right_thumb_roll_reference_site" class="z5_reference" pos="0.00825 0 0"/>
+            <body name="z5_right_thumb_yaw1_Link" pos="0.02895 0.0024159 -0.0078844">
+              <inertial pos="0.00077186 0.0104973 0.00727292" quat="0.478831 0.468268 -0.565228 0.481625" mass="0.0257886" diaginertia="3.37341e-06 3.20284e-06 1.40375e-06"/>
+              <joint name="z5_right_thumb_yaw1_joint" pos="0 0 0" axis="0 0.052336 -0.99863" range="0 2.61" actuatorfrcrange="-1.5 1.5" armature="0.001" damping="0.05" frictionloss="0.01"/>
+              <geom name="z5_right_thumb_yaw1_link_visual" class="z5_visual" mesh="z5_right_thumb_yaw1_link_visual"/>
+              <geom name="z5_right_thumb_yaw1_link_collision" class="z5_collision" mesh="z5_right_thumb_yaw1_link_collision"/>
+              <site name="z5_right_thumb_yaw1_reference_site" class="z5_reference" pos="0 -0.00039252 0.00748972"/>
+              <body name="z5_right_thumb_yaw2_link" pos="-0.0019821 0.030904 0.0016697">
+                <inertial pos="0.00107406 0.00907496 0.00731818" quat="0.641039 0.734272 0.130827 -0.181104" mass="0.0176551" diaginertia="1.6432e-06 1.61499e-06 8.01809e-07"/>
+                <joint name="z5_right_thumb_yaw2_joint" pos="0 0 0" axis="0 0.052336 -0.99863" range="-1.62 0.07" actuatorfrcrange="-0.8 0.8" armature="0.001" damping="0.05" frictionloss="0.01"/>
+                <geom name="z5_right_thumb_yaw2_link_visual" class="z5_visual" mesh="z5_right_thumb_yaw2_link_visual"/>
+                <geom name="z5_right_thumb_yaw2_link_collision" class="z5_collision" mesh="z5_right_thumb_yaw2_link_collision"/>
+                <site name="z5_right_thumb_yaw2_reference_site" class="z5_reference" pos="0 -0.00039252 0.00748972"/>
+                <body name="z5_right_thumb_yaw3_link" pos="0 0.026753 0.0016023">
+                  <inertial pos="0.00115206 0.00974858 0.00712908" quat="0.429588 0.435432 -0.600318 0.515239" mass="0.0194835" diaginertia="1.92436e-06 1.87145e-06 8.04194e-07"/>
+                  <joint name="z5_right_thumb_yaw3_joint" pos="0 0 0" axis="0 0.052336 -0.99863" range="-1.62 0.07" actuatorfrcrange="-0.8 0.8" armature="0.001" damping="0.05" frictionloss="0.01"/>
+                  <geom name="z5_right_thumb_yaw3_link_visual" class="z5_visual" mesh="z5_right_thumb_yaw3_link_visual"/>
+                  <geom name="z5_right_thumb_yaw3_link_collision" class="z5_collision" mesh="z5_right_thumb_yaw3_link_collision"/>
+                  <site name="z5_right_thumb_yaw3_reference_site" class="z5_reference" pos="0 -0.00039252 0.00748972"/>
+                  <site name="z5_right_thumb_tip_reference_site" class="z5_reference" pos="0 0.02639 0.00874"/>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+        <body name="z5_right_index_finger_roll1_link" pos="0.03579 0.0767512 -5.00026e-05" quat="0.998392 0 0 -0.0566928">
+          <inertial pos="-0.00847094 0.0115178 -0.0007909" quat="0.588295 -9.66638e-05 0.392313 0.707107" mass="0.00642259" diaginertia="4.94051e-07 4.4e-07 4.15949e-07"/>
+          <joint name="z5_right_index_finger_roll1_joint" pos="0 0 0" axis="1 0 0" range="-0.05 1.71" actuatorfrcrange="-1.5 1.5" armature="0.001" damping="0.05" frictionloss="0.01"/>
+          <geom name="z5_right_index_finger_roll1_link_visual" class="z5_visual" mesh="z5_right_index_finger_roll1_link_visual"/>
+          <geom name="z5_right_index_finger_roll1_link_collision" class="z5_collision" mesh="z5_right_index_finger_roll1_link_collision"/>
+          <site name="z5_right_index_finger_roll1_reference_site" class="z5_reference" pos="-0.008 0 0"/>
+          <body name="z5_right_index_finger_yaw_link" pos="-0.008 0.01715 -0.00765">
+            <inertial pos="6.576e-05 0.00916946 0.0064372" quat="0.497119 0.502865 -0.502865 0.497119" mass="0.018298" diaginertia="1.73011e-06 1.72e-06 8.59885e-07"/>
+            <joint name="z5_right_index_finger_yaw_joint" pos="0 0 0" axis="0 0 -1" range="-0.35 0.35" actuatorfrcrange="-0.8 0.8" armature="0.001" damping="0.05" frictionloss="0.01"/>
+            <geom name="z5_right_index_finger_yaw_link_visual" class="z5_visual" mesh="z5_right_index_finger_yaw_link_visual"/>
+            <geom name="z5_right_index_finger_yaw_link_collision" class="z5_collision" mesh="z5_right_index_finger_yaw_link_collision"/>
+            <site name="z5_right_index_finger_yaw_reference_site" class="z5_reference" pos="0 0 0.0075"/>
+            <body name="z5_right_index_finger_roll2_link" pos="-0.00795 0.0268 0.00925">
+              <inertial pos="0.00731818 0.00907496 -0.00107406" quat="0.647269 0.545791 -0.391148 0.360774" mass="0.0176551" diaginertia="1.6432e-06 1.61499e-06 8.01809e-07"/>
+              <joint name="z5_right_index_finger_roll2_joint" pos="0 0 0" axis="-1 0 0" range="-1.62 0.07" actuatorfrcrange="-0.8 0.8" armature="0.001" damping="0.05" frictionloss="0.01"/>
+              <geom name="z5_right_index_finger_roll2_link_visual" class="z5_visual" mesh="z5_right_index_finger_roll2_link_visual"/>
+              <geom name="z5_right_index_finger_roll2_link_collision" class="z5_collision" mesh="z5_right_index_finger_roll2_link_collision"/>
+              <site name="z5_right_index_finger_roll2_reference_site" class="z5_reference" pos="0.0075 0 0"/>
+              <body name="z5_right_index_finger_roll3_link" pos="0.0002 0.0268 0">
+                <inertial pos="0.00712908 0.00974858 -0.00115206" quat="0.728254 0.672226 -0.120724 0.0564326" mass="0.0194835" diaginertia="1.92436e-06 1.87145e-06 8.04194e-07"/>
+                <joint name="z5_right_index_finger_roll3_joint" pos="0 0 0" axis="-1 0 0" range="-1.62 0.07" actuatorfrcrange="-0.8 0.8" armature="0.001" damping="0.05" frictionloss="0.01"/>
+                <geom name="z5_right_index_finger_roll3_link_visual" class="z5_visual" mesh="z5_right_index_finger_roll3_link_visual"/>
+                <geom name="z5_right_index_finger_roll3_link_collision" class="z5_collision" mesh="z5_right_index_finger_roll3_link_collision"/>
+                <site name="z5_right_index_finger_roll3_reference_site" class="z5_reference" pos="0.0075 0 0"/>
+                <site name="z5_right_index_finger_tip_reference_site" class="z5_reference" pos="0.00776 0.02682 0"/>
+              </body>
+            </body>
+          </body>
+        </body>
+        <body name="z5_right_middle_finger_roll1_link" pos="0.016424 0.09018 -5.0005e-05" quat="0.999962 0 0 -0.00872639">
+          <inertial pos="-0.00847094 0.0115178 -0.0007909" quat="0.588299 -8.99145e-05 0.392307 0.707107" mass="0.00642259" diaginertia="4.94051e-08 4.4e-08 4.15949e-08"/>
+          <joint name="z5_right_middle_finger_roll1_joint" pos="0 0 0" axis="1 0 0" range="-0.05 1.71" actuatorfrcrange="-1.5 1.5" armature="0.001" damping="0.05" frictionloss="0.01"/>
+          <geom name="z5_right_middle_finger_roll1_link_visual" class="z5_visual" mesh="z5_right_middle_finger_roll1_link_visual"/>
+          <geom name="z5_right_middle_finger_roll1_link_collision" class="z5_collision" mesh="z5_right_middle_finger_roll1_link_collision"/>
+          <site name="z5_right_middle_finger_roll1_reference_site" class="z5_reference" pos="-0.008 0 0"/>
+          <body name="z5_right_middle_finger_yaw_link" pos="-0.008 0.01715 -0.00765">
+            <inertial pos="3.576e-05 0.00916946 0.0064372" quat="0.497119 0.502865 -0.502865 0.497119" mass="0.018298" diaginertia="1.73011e-06 1.72e-06 8.59885e-07"/>
+            <joint name="z5_right_middle_finger_yaw_joint" pos="0 0 0" axis="0 0 -1" range="-0.35 0.35" actuatorfrcrange="-0.8 0.8" armature="0.001" damping="0.05" frictionloss="0.01"/>
+            <geom name="z5_right_middle_finger_yaw_link_visual" class="z5_visual" mesh="z5_right_middle_finger_yaw_link_visual"/>
+            <geom name="z5_right_middle_finger_yaw_link_collision" class="z5_collision" mesh="z5_right_middle_finger_yaw_link_collision"/>
+            <site name="z5_right_middle_finger_yaw_reference_site" class="z5_reference" pos="0 0 0.0075"/>
+            <body name="z5_right_middle_finger_roll2_link" pos="-0.00795 0.0268 0.00925">
+              <inertial pos="0.00731818 0.00907496 -0.00107406" quat="0.647269 0.545791 -0.391148 0.360774" mass="0.0176551" diaginertia="1.6432e-06 1.61499e-06 8.01809e-07"/>
+              <joint name="z5_right_middle_finger_roll2_joint" pos="0 0 0" axis="-1 0 0" range="-1.62 0.07" actuatorfrcrange="-0.8 0.8" armature="0.001" damping="0.05" frictionloss="0.01"/>
+              <geom name="z5_right_middle_finger_roll2_link_visual" class="z5_visual" mesh="z5_right_middle_finger_roll2_link_visual"/>
+              <geom name="z5_right_middle_finger_roll2_link_collision" class="z5_collision" mesh="z5_right_middle_finger_roll2_link_collision"/>
+              <site name="z5_right_middle_finger_roll2_reference_site" class="z5_reference" pos="0.0075 0 0"/>
+              <body name="z5_right_middle_finger_roll3_link" pos="0.0002 0.0268 0">
+                <inertial pos="0.00712908 0.00974858 -0.00115206" quat="0.588276 0.326445 -0.40459 0.619413" mass="0.0194835" diaginertia="2.26364e-06 1.91452e-06 4.2184e-07"/>
+                <joint name="z5_right_middle_finger_roll3_joint" pos="0 0 0" axis="-1 0 0" range="-1.62 0.07" actuatorfrcrange="-0.8 0.8" armature="0.001" damping="0.05" frictionloss="0.01"/>
+                <geom name="z5_right_middle_finger_roll3_link_visual" class="z5_visual" mesh="z5_right_middle_finger_roll3_link_visual"/>
+                <geom name="z5_right_middle_finger_roll3_link_collision" class="z5_collision" mesh="z5_right_middle_finger_roll3_link_collision"/>
+                <site name="z5_right_middle_finger_roll3_reference_site" class="z5_reference" pos="0.0075 0 0"/>
+                <site name="z5_right_middle_finger_tip_reference_site" class="z5_reference" pos="0.00776 0.02682 0"/>
+              </body>
+            </body>
+          </body>
+        </body>
+        <body name="z5_right_ring_finger_roll1_link" pos="-0.0038776 0.08246 -5.0005e-05" quat="0.999229 0 0 0.0392599">
+          <inertial pos="-0.00847094 0.0115178 -0.0007909" quat="0.588295 -9.66638e-05 0.392313 0.707107" mass="0.00642259" diaginertia="4.94051e-07 4.4e-07 4.15949e-07"/>
+          <joint name="z5_right_ring_finger_roll1_joint" pos="0 0 0" axis="1 0 0" range="-0.05 1.71" actuatorfrcrange="-1.5 1.5" armature="0.001" damping="0.05" frictionloss="0.01"/>
+          <geom name="z5_right_ring_finger_roll1_link_visual" class="z5_visual" mesh="z5_right_ring_finger_roll1_link_visual"/>
+          <geom name="z5_right_ring_finger_roll1_link_collision" class="z5_collision" mesh="z5_right_ring_finger_roll1_link_collision"/>
+          <site name="z5_right_ring_finger_roll1_reference_site" class="z5_reference" pos="-0.008 0 0"/>
+          <body name="z5_right_ring_finger_yaw_link" pos="-0.008 0.01715 -0.00765">
+            <inertial pos="3.576e-05 0.00916946 0.0064372" quat="0.497119 0.502865 -0.502865 0.497119" mass="0.018298" diaginertia="1.73011e-06 1.72e-06 8.59885e-07"/>
+            <joint name="z5_right_ring_finger_yaw_joint" pos="0 0 0" axis="0 0 -1" range="-0.35 0.35" actuatorfrcrange="-0.8 0.8" armature="0.001" damping="0.05" frictionloss="0.01"/>
+            <geom name="z5_right_ring_finger_yaw_link_visual" class="z5_visual" mesh="z5_right_ring_finger_yaw_link_visual"/>
+            <geom name="z5_right_ring_finger_yaw_link_collision" class="z5_collision" mesh="z5_right_ring_finger_yaw_link_collision"/>
+            <site name="z5_right_ring_finger_yaw_reference_site" class="z5_reference" pos="0 0 0.0075"/>
+            <body name="z5_right_ring_finger_roll2_link" pos="-0.00795 0.0268 0.00925">
+              <inertial pos="0.00731818 0.00907496 -0.00107406" quat="0.647269 0.545791 -0.391148 0.360774" mass="0.0176551" diaginertia="1.6432e-06 1.61499e-06 8.01809e-07"/>
+              <joint name="z5_right_ring_finger_roll2_joint" pos="0 0 0" axis="-1 0 0" range="-1.62 0.07" actuatorfrcrange="-0.8 0.8" armature="0.001" damping="0.05" frictionloss="0.01"/>
+              <geom name="z5_right_ring_finger_roll2_link_visual" class="z5_visual" mesh="z5_right_ring_finger_roll2_link_visual"/>
+              <geom name="z5_right_ring_finger_roll2_link_collision" class="z5_collision" mesh="z5_right_ring_finger_roll2_link_collision"/>
+              <site name="z5_right_ring_finger_roll2_reference_site" class="z5_reference" pos="0.0075 0 0"/>
+              <body name="z5_right_ring_finger_roll3_link" pos="0.0002 0.0268 0">
+                <inertial pos="0.00712908 0.00974858 -0.00115206" quat="0.728254 0.672226 -0.120724 0.0564326" mass="0.0194835" diaginertia="1.92436e-06 1.87145e-06 8.04194e-07"/>
+                <joint name="z5_right_ring_finger_roll3_joint" pos="0 0 0" axis="-1 0 0" range="-1.62 0.07" actuatorfrcrange="-0.8 0.8" armature="0.001" damping="0.05" frictionloss="0.01"/>
+                <geom name="z5_right_ring_finger_roll3_link_visual" class="z5_visual" mesh="z5_right_ring_finger_roll3_link_visual"/>
+                <geom name="z5_right_ring_finger_roll3_link_collision" class="z5_collision" mesh="z5_right_ring_finger_roll3_link_collision"/>
+                <site name="z5_right_ring_finger_roll3_reference_site" class="z5_reference" pos="0.0075 0 0"/>
+                <site name="z5_right_ring_finger_tip_reference_site" class="z5_reference" pos="0.00776 0.02682 0"/>
+              </body>
+            </body>
+          </body>
+        </body>
+        <body name="z5_right_little_finger_pitch_link" pos="-0.018284 0.043667 0.0045" quat="0.939249 -0.0163984 -0.339834 0.0453241">
+          <inertial pos="-0.00918994 0.00597022 0.00074414" quat="0.697117 0.648912 0.249457 -0.175252" mass="0.0539163" diaginertia="1.3166e-05 1.2423e-05 4.45096e-06"/>
+          <joint name="z5_right_little_finger_pitch_joint" pos="0 0 0" axis="0 0.996802 0.0799141" range="0 0.43" actuatorfrcrange="-0.8 0.8" armature="0.001" damping="0.05" frictionloss="0.01"/>
+          <geom name="z5_right_little_finger_pitch_link_visual" class="z5_visual" mesh="z5_right_little_finger_pitch_link_visual"/>
+          <geom name="z5_right_little_finger_pitch_link_collision" class="z5_collision" mesh="z5_right_little_finger_pitch_link_collision"/>
+          <body name="z5_right_little_finger_roll1_link" pos="-0.00434181 0.0261013 -0.000232432" quat="0.939171 0.0508 0.335905 0.0504461">
+            <inertial pos="-0.00847094 0.0115178 -0.0007909" quat="0.588295 -9.66638e-05 0.392313 0.707107" mass="0.00642259" diaginertia="4.94051e-07 4.4e-07 4.15949e-07"/>
+            <joint name="z5_right_little_finger_roll1_joint" pos="0 0 0" axis="1 0 0" range="-0.05 1.71" actuatorfrcrange="-1.5 1.5" armature="0.001" damping="0.05" frictionloss="0.01"/>
+            <geom name="z5_right_little_finger_roll1_link_visual" class="z5_visual" mesh="z5_right_little_finger_roll1_link_visual"/>
+            <geom name="z5_right_little_finger_roll1_link_collision" class="z5_collision" mesh="z5_right_little_finger_roll1_link_collision"/>
+            <site name="z5_right_little_finger_roll1_reference_site" class="z5_reference" pos="-0.008 0 0"/>
+            <body name="z5_right_little_finger_yaw_link" pos="-0.008 0.017151 -0.00764768">
+              <inertial pos="3.576e-05 0.00916946 0.0064372" quat="0.497119 0.502865 -0.502865 0.497119" mass="0.018298" diaginertia="1.73011e-06 1.72e-06 8.59885e-07"/>
+              <joint name="z5_right_little_finger_yaw_joint" pos="0 0 0" axis="0 0.000135012 -1" range="-0.35 0.35" actuatorfrcrange="-0.8 0.8" armature="0.001" damping="0.05" frictionloss="0.01"/>
+              <geom name="z5_right_little_finger_yaw_link_visual" class="z5_visual" mesh="z5_right_little_finger_yaw_link_visual"/>
+              <geom name="z5_right_little_finger_yaw_link_collision" class="z5_collision" mesh="z5_right_little_finger_yaw_link_collision"/>
+              <site name="z5_right_little_finger_yaw_reference_site" class="z5_reference" pos="0 -1.01e-06 0.0075"/>
+              <body name="z5_right_little_finger_roll2_link" pos="-0.00795 0.026799 0.0092536">
+                <inertial pos="0.00731818 0.00907496 -0.00107406" quat="0.647269 0.545791 -0.391148 0.360774" mass="0.0176551" diaginertia="1.6432e-06 1.61499e-06 8.01809e-07"/>
+                <joint name="z5_right_little_finger_roll2_joint" pos="0 0 0" axis="-1 0 0" range="-1.62 0.07" actuatorfrcrange="-0.8 0.8" armature="0.001" damping="0.05" frictionloss="0.01"/>
+                <geom name="z5_right_little_finger_roll2_link_visual" class="z5_visual" mesh="z5_right_little_finger_roll2_link_visual"/>
+                <geom name="z5_right_little_finger_roll2_link_collision" class="z5_collision" mesh="z5_right_little_finger_roll2_link_collision"/>
+                <site name="z5_right_little_finger_roll2_reference_site" class="z5_reference" pos="0.0075 0 0"/>
+                <body name="z5_right_little_finger_roll3_link" pos="0.0002 0.0268 0">
+                  <inertial pos="0.00712908 0.00974858 -0.00115206" quat="0.703836 0.611096 -0.282247 0.226965" mass="0.0194835" diaginertia="2.15161e-06 1.64838e-06 8.0001e-07"/>
+                  <joint name="z5_right_little_finger_roll3_joint" pos="0 0 0" axis="-1 0 0" range="-1.62 0.07" actuatorfrcrange="-0.8 0.8" armature="0.001" damping="0.05" frictionloss="0.01"/>
+                  <geom name="z5_right_little_finger_roll3_link_visual" class="z5_visual" mesh="z5_right_little_finger_roll3_link_visual"/>
+                  <geom name="z5_right_little_finger_roll3_link_collision" class="z5_collision" mesh="z5_right_little_finger_roll3_link_collision"/>
+                  <site name="z5_right_little_finger_roll3_reference_site" class="z5_reference" pos="0.0075 0 0"/>
+                  <site name="z5_right_little_finger_tip_reference_site" class="z5_reference" pos="0.00776 0.02682 0"/>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+    <body name="pen" pos="-0.0145203 0.0883836 0.0338571" quat="0.693569 -0.183077 0.675263 0.171652">
+      <geom size="0.006 0.089" type="cylinder" contype="0" conaffinity="0" rgba="0.2 0.4 1 0.8"/>
+      <site pos="0 0 0.1" size="0.006" rgba="1 0 1 1"/>
+      <site pos="0 0 -0.1" size="0.006" rgba="1 1 0 1"/>
+    </body>
+  </worldbody>
+
+  <contact>
+    <exclude body1="z5_palm_link" body2="z5_right_thumb_pitch_link"/>
+    <exclude body1="z5_palm_link" body2="z5_right_thumb_roll_link"/>
+    <exclude body1="z5_palm_link" body2="z5_right_thumb_yaw1_Link"/>
+    <exclude body1="z5_palm_link" body2="z5_right_index_finger_roll1_link"/>
+    <exclude body1="z5_palm_link" body2="z5_right_index_finger_yaw_link"/>
+    <exclude body1="z5_palm_link" body2="z5_right_middle_finger_roll1_link"/>
+    <exclude body1="z5_palm_link" body2="z5_right_ring_finger_roll1_link"/>
+    <exclude body1="z5_palm_link" body2="z5_right_little_finger_pitch_link"/>
+    <exclude body1="z5_palm_link" body2="z5_right_little_finger_roll1_link"/>
+    <exclude body1="z5_right_thumb_pitch_link" body2="z5_right_thumb_roll_link"/>
+    <exclude body1="z5_right_thumb_roll_link" body2="z5_right_thumb_yaw1_Link"/>
+    <exclude body1="z5_right_thumb_yaw1_Link" body2="z5_right_thumb_yaw2_link"/>
+    <exclude body1="z5_right_thumb_yaw2_link" body2="z5_right_thumb_yaw3_link"/>
+    <exclude body1="z5_right_index_finger_roll1_link" body2="z5_right_index_finger_yaw_link"/>
+    <exclude body1="z5_right_index_finger_yaw_link" body2="z5_right_index_finger_roll2_link"/>
+    <exclude body1="z5_right_index_finger_roll2_link" body2="z5_right_index_finger_roll3_link"/>
+    <exclude body1="z5_right_middle_finger_roll1_link" body2="z5_right_middle_finger_yaw_link"/>
+    <exclude body1="z5_right_middle_finger_yaw_link" body2="z5_right_middle_finger_roll2_link"/>
+    <exclude body1="z5_right_middle_finger_roll2_link" body2="z5_right_middle_finger_roll3_link"/>
+    <exclude body1="z5_right_ring_finger_roll1_link" body2="z5_right_ring_finger_yaw_link"/>
+    <exclude body1="z5_right_ring_finger_yaw_link" body2="z5_right_ring_finger_roll2_link"/>
+    <exclude body1="z5_right_ring_finger_roll2_link" body2="z5_right_ring_finger_roll3_link"/>
+    <exclude body1="z5_right_little_finger_pitch_link" body2="z5_right_little_finger_roll1_link"/>
+    <exclude body1="z5_right_little_finger_roll1_link" body2="z5_right_little_finger_yaw_link"/>
+    <exclude body1="z5_right_little_finger_yaw_link" body2="z5_right_little_finger_roll2_link"/>
+    <exclude body1="z5_right_little_finger_roll2_link" body2="z5_right_little_finger_roll3_link"/>
+  </contact>
+
+  <actuator>
+    <general name="z5_right_thumb_pitch_ctrl" joint="z5_right_thumb_pitch_joint" ctrlrange="0 1.57" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_thumb_roll_ctrl" joint="z5_right_thumb_roll_joint" ctrlrange="-1.57 0.13" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_thumb_yaw1_ctrl" joint="z5_right_thumb_yaw1_joint" ctrlrange="0 2.61" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_thumb_yaw2_ctrl" joint="z5_right_thumb_yaw2_joint" ctrlrange="-1.62 0.07" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_thumb_yaw3_ctrl" joint="z5_right_thumb_yaw3_joint" ctrlrange="-1.62 0.07" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_index_finger_roll1_ctrl" joint="z5_right_index_finger_roll1_joint" ctrlrange="-0.05 1.71" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_index_finger_yaw_ctrl" joint="z5_right_index_finger_yaw_joint" ctrlrange="-0.35 0.35" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_index_finger_roll2_ctrl" joint="z5_right_index_finger_roll2_joint" ctrlrange="-1.62 0.07" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_index_finger_roll3_ctrl" joint="z5_right_index_finger_roll3_joint" ctrlrange="-1.62 0.07" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_middle_finger_roll1_ctrl" joint="z5_right_middle_finger_roll1_joint" ctrlrange="-0.05 1.71" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_middle_finger_yaw_ctrl" joint="z5_right_middle_finger_yaw_joint" ctrlrange="-0.35 0.35" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_middle_finger_roll2_ctrl" joint="z5_right_middle_finger_roll2_joint" ctrlrange="-1.62 0.07" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_middle_finger_roll3_ctrl" joint="z5_right_middle_finger_roll3_joint" ctrlrange="-1.62 0.07" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_ring_finger_roll1_ctrl" joint="z5_right_ring_finger_roll1_joint" ctrlrange="-0.05 1.71" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_ring_finger_yaw_ctrl" joint="z5_right_ring_finger_yaw_joint" ctrlrange="-0.35 0.35" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_ring_finger_roll2_ctrl" joint="z5_right_ring_finger_roll2_joint" ctrlrange="-1.62 0.07" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_ring_finger_roll3_ctrl" joint="z5_right_ring_finger_roll3_joint" ctrlrange="-1.62 0.07" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_little_finger_pitch_ctrl" joint="z5_right_little_finger_pitch_joint" ctrlrange="0 0.43" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_little_finger_roll1_ctrl" joint="z5_right_little_finger_roll1_joint" ctrlrange="-0.05 1.71" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_little_finger_yaw_ctrl" joint="z5_right_little_finger_yaw_joint" ctrlrange="-0.35 0.35" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_little_finger_roll2_ctrl" joint="z5_right_little_finger_roll2_joint" ctrlrange="-1.62 0.07" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+    <general name="z5_right_little_finger_roll3_ctrl" joint="z5_right_little_finger_roll3_joint" ctrlrange="-1.62 0.07" biastype="affine" gainprm="5" biasprm="0 -5 -0.05"/>
+  </actuator>
+</mujoco>

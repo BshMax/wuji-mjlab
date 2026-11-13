@@ -73,6 +73,9 @@ pyzmq = ">=27.0"
 pyyaml = ">=6.0"
 opencv-contrib-python = ">=4.13,<5"
 wuji_sdk = "==2026.7.2"
+matplotlib = ">=3.8, <4"
+# DDS for the real backend runs in the unitree_deploy conda env (cp310 wheels);
+# this env is py3.11 which has no cyclonedds wheel.
 
 # Task names live in one namespace per environment, so each deploy task gets its
 # own feature + environment and these short verbs stay reusable across tasks.
@@ -100,3 +103,21 @@ pen-tag-test-stereo = { cmd = "python deploy/pen_spin/scripts/pen_world_observer
 pen-tag-test-stereo-50 = { cmd = "python deploy/pen_spin/scripts/pen_world_observer.py --source realsense --detect-only --stereo --preview --detect-hz 50 --camera-config deploy/pen_spin/config/realsense_sheet_50.yaml", description = "Paired IR comparison profile: 848x480 at up to 50 detection Hz" }
 
 pen-tag-benchmark = { cmd = "python deploy/pen_spin/tools/tag_benchmark.py", description = "Record raw IR pairs, annotate independent A4 truth, compare detector stages and review false detections" }
+
+z5-bridge = { cmd = "python deploy/pen_spin/tools/z5_pose_bridge.py --in-port 5556 --out-port 5555", description = "Republish the pen observer pose (wrist-tag frame :5556) as palm_link tracking quat on :5555 for the Z5 bundle" }
+z5-play = { cmd = "python third_party/z5-pen-spin-deploy/deploy/z5_pen_spin/scripts/play_real.py --engine onnx", description = "Run the exported Z5 pen-spin policy (append --backend mujoco|real etc.)" }
+z5-probe = { cmd = "python deploy/pen_spin/tools/z5_policy_probe.py", description = "Camera-only action probe: live palm_link pose + ONNX policy + mock hand, no DDS" }
+z5-check-pose = { cmd = "python third_party/z5-pen-spin-deploy/deploy/z5_pen_spin/scripts/check_pose.py", description = "Compare live palm_link pen pose with a reference clip frame (append --clip ID)" }
+# The exported scene.mjb is locked to mujoco 3.15; mjlab pins this env to <3.12,
+# so the sim runs in a cached pixi-exec env instead of the project env.
+z5-sim = { cmd = "pixi exec --spec 'mujoco==3.15.0' --spec 'onnxruntime' --spec 'pyzmq' --spec 'numpy' -- python third_party/z5-pen-spin-deploy/deploy/z5_pen_spin/scripts/play_real.py --engine onnx --backend mujoco", description = "Closed-loop MuJoCo rollout of the exported bundle (append --steps/--viewer)" }
+z5-sim-chain = { cmd = "pixi exec --spec 'mujoco==3.15.0' --spec 'onnxruntime' --spec 'pyzmq' --spec 'numpy' -- python deploy/pen_spin/tools/z5_sim_chain.py", description = "Sim-to-sim full chain: virtual observer -> real z5_pose_bridge -> ONNX policy -> MuJoCo execution" }
+z5-vision-sim = { cmd = "pixi exec --spec 'mujoco==3.15.0' --spec 'onnxruntime' --spec 'pyzmq' --spec 'numpy' --spec 'opencv' --spec 'pyyaml' -- python deploy/pen_spin/tools/z5_visual_sim.py", description = "Vision-in-the-loop sim: render -> real tag/pen detection -> bridge -> ONNX -> MuJoCo (append --steps/--save-frames)" }
+z5-real-preflight = { cmd = "python deploy/pen_spin/tools/z5_real_preflight.py", description = "Pre-flight check for real-hardware deployment (no hand needed)" }
+z5-flat-capture = { cmd = "/home/unitree/miniconda3/envs/unitree_deploy/bin/python deploy/pen_spin/tools/z5_flat_capture.py", description = "Capture the measured flat rest pose to outputs/flat_pose.npy (run while hand is flat, e.g. after -k calibration)" }
+z5-play-real = { cmd = "/home/unitree/miniconda3/envs/unitree_deploy/bin/python third_party/z5-pen-spin-deploy/deploy/z5_pen_spin/scripts/play_real.py --engine onnx --backend real --sdk-path /home/unitree/Softwares/unitree_sdk2_python --kp 2 --kd 0.1", description = "Real-hardware policy run via unitree_deploy env (append --wire-convention X --pose-endpoint ... --clip ID --log out.npz)" }
+z5-mirror = { cmd = "/home/unitree/miniconda3/envs/unitree_deploy/bin/python deploy/pen_spin/tools/z5_mirror.py --sdk-path /home/unitree/Softwares/unitree_sdk2_python", description = "Live MuJoCo mirror: real hand (DDS) + camera pen + reference ghost/trajectory (append --wire-convention X --clip ID)" }
+
+# User-local Hikrobot MVS SDK (no sudo install): bindings + libs for --source camera.
+[feature.pen-spin-deploy.activation]
+env = { MVS_PYTHON_PATH = "${HOME}/.local/opt/MVS/Samples/64/Python", MVCAM_COMMON_RUNENV = "${HOME}/.local/opt/MVS/lib", ALLUSERSPROFILE = "${HOME}/.cache/MVS", LD_LIBRARY_PATH = "${HOME}/.local/opt/MVS/lib/64:${LD_LIBRARY_PATH:-}" }

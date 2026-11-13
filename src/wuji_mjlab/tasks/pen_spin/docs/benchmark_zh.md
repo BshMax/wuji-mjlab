@@ -8,7 +8,7 @@
 不加 `--frames` 时窗口持续运行，初始仅预览，不写图像，不会 10 秒自动关闭：
 
 ```bash
-cd /home/psy/unitree/wuji-mjlab
+cd "$(git rev-parse --show-toplevel)"
 .pixi/envs/pen-spin-deploy/bin/python deploy/pen_spin/tools/tag_benchmark.py record outputs/tag_eval/session_01
 ```
 
@@ -49,7 +49,7 @@ cd /home/psy/unitree/wuji-mjlab
 SDK（Software Development Kit，软件开发工具包）使用压缩包中原始 `mvsdk.py` 和当前架构的 `libMVSDK.so`。原始厂商文件保存在用户目录，不提交进 Git。安装工具只提取固定文件，记录 SHA-256 校验和，不运行包内安装脚本，不复制系统库，不改 USB 权限。
 
 ```bash
-cd /home/psy/unitree/wuji-mjlab
+cd "$(git rev-parse --show-toplevel)"
 # 当前电脑已安装；换电脑时执行一次：
 .pixi/envs/pen-spin-deploy/bin/python deploy/pen_spin/tools/mindvision_sdk.py install /home/psy/Downloads/CameraSDK.zip
 
@@ -96,7 +96,7 @@ cd /home/psy/unitree/wuji-mjlab
 以下命令均在同一个终端执行：
 
 ```bash
-cd /home/psy/unitree/wuji-mjlab
+cd "$(git rev-parse --show-toplevel)"
 TAG_PY="$PWD/.pixi/envs/pen-spin-deploy/bin/python"
 TAG_TOOL="$PWD/deploy/pen_spin/tools/tag_benchmark.py"
 mkdir -p outputs/tag_eval

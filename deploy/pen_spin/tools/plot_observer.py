@@ -181,9 +181,12 @@ def main() -> None:
         ax.axvspan(a, b, color="r", alpha=.35)
     ax.set_ylim(-0.05, 1.05)
     ax.set_ylabel("valid")
+    ax3 = ax.twinx()
+    ax3.plot(t, proc_ms, lw=.5, color="teal", alpha=.8)
+    ax3.set_ylabel("proc ms", color="teal")
     ax.set_title(f"pose validity — {len(gaps)} dropout runs "
                  f"(trained model: mean ~{TRAIN_DROPOUT_MEAN_MS:.0f}ms, "
-                 f"tail {TRAIN_DROPOUT_MAX_MS:.0f}ms)")
+                 f"tail {TRAIN_DROPOUT_MAX_MS:.0f}ms); teal = per-frame proc ms")
     ax.set_xlabel("time (s)")
     ax.grid(alpha=.3)
 

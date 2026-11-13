@@ -1,0 +1,362 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mujoco model="unitree_z5_right">
+  <compiler angle="radian" meshdir="." autolimits="true" balanceinertia="true"/>
+
+  <default>
+    <joint armature="0.001" damping="0.05" frictionloss="0.01"/>
+    <!-- Explicit kv lets Newton map these position actuators to
+         Control.joint_target_pos. -->
+    <position kp="5" kv="0.05"/>
+    <default class="visual">
+      <geom type="mesh" contype="0" conaffinity="0" group="1" density="0"
+            rgba="0.79216 0.81961 0.93333 1"/>
+    </default>
+    <default class="collision">
+      <geom type="mesh" contype="1" conaffinity="1" group="3" density="0"
+            rgba="0.79216 0.81961 0.93333 1"/>
+    </default>
+    <default class="reference">
+      <site type="sphere" size="0.0015" group="4" rgba="0.1 1 0.1 1"/>
+    </default>
+  </default>
+
+  <asset>
+    <mesh name="palm_link_visual" file="meshes/visual/palm_link.STL"/>
+    <mesh name="palm_link_collision" file="meshes/collision/palm_link.STL"/>
+    <mesh name="right_thumb_pitch_link_visual" file="meshes/visual/right_thumb_pitch_link.STL"/>
+    <mesh name="right_thumb_pitch_link_collision" file="meshes/collision/right_thumb_pitch_link.STL"/>
+    <mesh name="right_thumb_roll_link_visual" file="meshes/visual/right_thumb_roll_link.STL"/>
+    <mesh name="right_thumb_roll_link_collision" file="meshes/collision/right_thumb_roll_link.STL"/>
+    <mesh name="right_thumb_yaw1_link_visual" file="meshes/visual/right_thumb_yaw1_Link.STL"/>
+    <mesh name="right_thumb_yaw1_link_collision" file="meshes/collision/right_thumb_yaw1_Link.STL"/>
+    <mesh name="right_thumb_yaw2_link_visual" file="meshes/visual/right_thumb_yaw2_link.STL"/>
+    <mesh name="right_thumb_yaw2_link_collision" file="meshes/collision/right_thumb_yaw2_link.STL"/>
+    <mesh name="right_thumb_yaw3_link_visual" file="meshes/visual/right_thumb_yaw3_link.STL"/>
+    <mesh name="right_thumb_yaw3_link_collision" file="meshes/collision/right_thumb_yaw3_link.STL"/>
+
+    <mesh name="right_index_finger_roll1_link_visual" file="meshes/visual/right_index finger_roll1_link.STL"/>
+    <mesh name="right_index_finger_roll1_link_collision" file="meshes/collision/right_index finger_roll1_link.STL"/>
+    <mesh name="right_index_finger_yaw_link_visual" file="meshes/visual/right_index finger_yaw_link.STL"/>
+    <mesh name="right_index_finger_yaw_link_collision" file="meshes/collision/right_index finger_yaw_link.STL"/>
+    <mesh name="right_index_finger_roll2_link_visual" file="meshes/visual/right_index finger_roll2_link.STL"/>
+    <mesh name="right_index_finger_roll2_link_collision" file="meshes/collision/right_index finger_roll2_link.STL"/>
+    <mesh name="right_index_finger_roll3_link_visual" file="meshes/visual/right_index finger_roll3_link.STL"/>
+    <mesh name="right_index_finger_roll3_link_collision" file="meshes/collision/right_index finger_roll3_link.STL"/>
+
+    <mesh name="right_middle_finger_roll1_link_visual" file="meshes/visual/right_middle finger_roll1_link.STL"/>
+    <mesh name="right_middle_finger_roll1_link_collision" file="meshes/collision/right_middle finger_roll1_link.STL"/>
+    <mesh name="right_middle_finger_yaw_link_visual" file="meshes/visual/right_middle finger_yaw_link.STL"/>
+    <mesh name="right_middle_finger_yaw_link_collision" file="meshes/collision/right_middle finger_yaw_link.STL"/>
+    <mesh name="right_middle_finger_roll2_link_visual" file="meshes/visual/right_middle finger_roll2_link.STL"/>
+    <mesh name="right_middle_finger_roll2_link_collision" file="meshes/collision/right_middle finger_roll2_link.STL"/>
+    <mesh name="right_middle_finger_roll3_link_visual" file="meshes/visual/right_middle finger_roll3_link.STL"/>
+    <mesh name="right_middle_finger_roll3_link_collision" file="meshes/collision/right_middle finger_roll3_link.STL"/>
+
+    <mesh name="right_ring_finger_roll1_link_visual" file="meshes/visual/right_ring finger_roll1_link.STL"/>
+    <mesh name="right_ring_finger_roll1_link_collision" file="meshes/collision/right_ring finger_roll1_link.STL"/>
+    <mesh name="right_ring_finger_yaw_link_visual" file="meshes/visual/right_ring finger_yaw_link.STL"/>
+    <mesh name="right_ring_finger_yaw_link_collision" file="meshes/collision/right_ring finger_yaw_link.STL"/>
+    <mesh name="right_ring_finger_roll2_link_visual" file="meshes/visual/right_ring finger_roll2_link.STL"/>
+    <mesh name="right_ring_finger_roll2_link_collision" file="meshes/collision/right_ring finger_roll2_link.STL"/>
+    <mesh name="right_ring_finger_roll3_link_visual" file="meshes/visual/right_ring finger_roll3_link.STL"/>
+    <mesh name="right_ring_finger_roll3_link_collision" file="meshes/collision/right_ring finger_roll3_link.STL"/>
+
+    <mesh name="right_little_finger_pitch_link_visual" file="meshes/visual/right_little finger_pitch_link.STL"/>
+    <mesh name="right_little_finger_pitch_link_collision" file="meshes/collision/right_little finger_pitch_link.STL"/>
+    <mesh name="right_little_finger_roll1_link_visual" file="meshes/visual/right_little finger_roll1_link.STL"/>
+    <mesh name="right_little_finger_roll1_link_collision" file="meshes/collision/right_little finger_roll1_link.STL"/>
+    <mesh name="right_little_finger_yaw_link_visual" file="meshes/visual/right_little finger_yaw_link.STL"/>
+    <mesh name="right_little_finger_yaw_link_collision" file="meshes/collision/right_little finger_yaw_link.STL"/>
+    <mesh name="right_little_finger_roll2_link_visual" file="meshes/visual/right_little finger_roll2_link.STL"/>
+    <mesh name="right_little_finger_roll2_link_collision" file="meshes/collision/right_little finger_roll2_link.STL"/>
+    <mesh name="right_little_finger_roll3_link_visual" file="meshes/visual/right_little finger_roll3_link.STL"/>
+    <mesh name="right_little_finger_roll3_link_collision" file="meshes/collision/right_little finger_roll3_link.STL"/>
+  </asset>
+
+  <worldbody>
+    <!-- The root_to_palm fixed transform from the URDF is folded into this root body. -->
+    <body name="palm_link" quat="0.4999981634 0.5 0.5000018366 0.5">
+      <inertial pos="0.00686796 0.05506045 -0.00171513" mass="0.16883772"
+                fullinertia="0.0001207 5.652E-05 0.0001588 -1.351E-05 6.7E-07 1.49E-06"/>
+      <geom name="palm_link_visual" mesh="palm_link_visual" class="visual"/>
+      <geom name="palm_link_collision" mesh="palm_link_collision" class="collision"/>
+      <site name="palm_reference_site" pos="0 0 0" class="reference"/>
+
+      <body name="right_thumb_pitch_link" pos="0.022131 0.040091 0"
+            quat="0.995804908 0 0 -0.09150183203">
+        <inertial pos="-0.00130377 -0.0220228 -8.928E-05" mass="0.02009503"
+                  fullinertia="2.34E-06 8.8E-07 2.22E-06 2E-08 -1E-08 7E-08"/>
+        <joint name="right_thumb_pitch_joint" axis="0 -1 0" range="0 1.57"
+               actuatorfrcrange="-1.5 1.5"/>
+        <geom name="right_thumb_pitch_link_visual" mesh="right_thumb_pitch_link_visual" class="visual"/>
+        <geom name="right_thumb_pitch_link_collision" mesh="right_thumb_pitch_link_collision" class="collision"/>
+        <body name="right_thumb_roll_link" pos="-0.008 -0.0151 0">
+          <inertial pos="0.01696747 0.00393146 0.00105164" mass="0.01743225"
+                    fullinertia="1E-06 1.92E-06 1.78E-06 2.9E-07 -3E-08 -2E-08"/>
+          <joint name="right_thumb_roll_joint" axis="-1 0 0" range="-1.57 0.13"
+                 actuatorfrcrange="-1.5 1.5"/>
+          <geom name="right_thumb_roll_link_visual" mesh="right_thumb_roll_link_visual" class="visual"/>
+          <geom name="right_thumb_roll_link_collision" mesh="right_thumb_roll_link_collision" class="collision"/>
+          <site name="right_thumb_roll_reference_site" pos="0.00825 0 0" class="reference"/>
+          <body name="right_thumb_yaw1_Link" pos="0.02895 0.0024159 -0.0078844">
+            <inertial pos="0.00077186 0.01049731 0.00727292" mass="0.02578857"
+                      fullinertia="3.19E-06 1.43E-06 3.36E-06 -1.6E-07 -3E-08 -1.5E-07"/>
+            <joint name="right_thumb_yaw1_joint" axis="0 0.052336 -0.99863" range="0 2.61"
+                   actuatorfrcrange="-1.5 1.5"/>
+            <geom name="right_thumb_yaw1_link_visual" mesh="right_thumb_yaw1_link_visual" class="visual"/>
+            <geom name="right_thumb_yaw1_link_collision" mesh="right_thumb_yaw1_link_collision" class="collision"/>
+            <site name="right_thumb_yaw1_reference_site" pos="0 -0.00039252 0.00748972" class="reference"/>
+            <body name="right_thumb_yaw2_link" pos="-0.0019821 0.030904 0.0016697">
+              <inertial pos="0.00107406 0.00907496 0.00731818" mass="0.01765506"
+                        fullinertia="1.63E-06 8.2E-07 1.61E-06 -8E-08 -2E-08 -9E-08"/>
+              <joint name="right_thumb_yaw2_joint" axis="0 0.052336 -0.99863" range="-1.62 0.07"
+                     actuatorfrcrange="-0.8 0.8"/>
+              <geom name="right_thumb_yaw2_link_visual" mesh="right_thumb_yaw2_link_visual" class="visual"/>
+              <geom name="right_thumb_yaw2_link_collision" mesh="right_thumb_yaw2_link_collision" class="collision"/>
+              <site name="right_thumb_yaw2_reference_site" pos="0 -0.00039252 0.00748972" class="reference"/>
+              <body name="right_thumb_yaw3_link" pos="0 0.026753 0.0016023">
+                <inertial pos="0.00115206 0.00974858 0.00712908" mass="0.01948352"
+                          fullinertia="1.87E-06 8.2E-07 1.91E-06 -7E-08 -2E-08 -1.1E-07"/>
+                <joint name="right_thumb_yaw3_joint" axis="0 0.052336 -0.99863" range="-1.62 0.07"
+                       actuatorfrcrange="-0.8 0.8"/>
+                <geom name="right_thumb_yaw3_link_visual" mesh="right_thumb_yaw3_link_visual" class="visual"/>
+                <geom name="right_thumb_yaw3_link_collision" mesh="right_thumb_yaw3_link_collision" class="collision"/>
+                <site name="right_thumb_yaw3_reference_site" pos="0 -0.00039252 0.00748972" class="reference"/>
+                <site name="right_thumb_tip_reference_site" pos="0 0.02639 0.00874" class="reference"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <body name="right_index_finger_roll1_link"
+            pos="0.0357900173201511 0.0767511644835586 -5.00025592935667E-05"
+            quat="0.9983916706 0 0 -0.05669278756">
+        <inertial pos="-0.00847094 0.01151783 -0.00079090" mass="0.00642259"
+                  fullinertia="4.4E-07 4.7E-07 4.4E-07 -2E-08 0 -3E-08"/>
+        <joint name="right_index_finger_roll1_joint" axis="1 0 0" range="-0.05 1.71"
+               actuatorfrcrange="-1.5 1.5"/>
+        <geom name="right_index_finger_roll1_link_visual" mesh="right_index_finger_roll1_link_visual" class="visual"/>
+        <geom name="right_index_finger_roll1_link_collision" mesh="right_index_finger_roll1_link_collision" class="collision"/>
+        <site name="right_index_finger_roll1_reference_site" pos="-0.008 0 0" class="reference"/>
+        <body name="right_index_finger_yaw_link" pos="-0.008 0.01715 -0.00765">
+          <inertial pos="6.576E-05 0.00916946 0.0064372" mass="0.01829804"
+                    fullinertia="1.72E-06 8.6E-07 1.73E-06 0 0 -1E-08"/>
+          <joint name="right_index_finger_yaw_joint" axis="0 0 -1" range="-0.35 0.35"
+                 actuatorfrcrange="-0.8 0.8"/>
+          <geom name="right_index_finger_yaw_link_visual" mesh="right_index_finger_yaw_link_visual" class="visual"/>
+          <geom name="right_index_finger_yaw_link_collision" mesh="right_index_finger_yaw_link_collision" class="collision"/>
+          <site name="right_index_finger_yaw_reference_site" pos="0 0 0.0075" class="reference"/>
+          <body name="right_index_finger_roll2_link" pos="-0.00795 0.0268 0.00925">
+            <inertial pos="0.00731818 0.00907496 -0.00107406" mass="0.01765506"
+                      fullinertia="1.61E-06 8.2E-07 1.63E-06 -9E-08 2E-08 8E-08"/>
+            <joint name="right_index_finger_roll2_joint" axis="-1 0 0" range="-1.62 0.07"
+                   actuatorfrcrange="-0.8 0.8"/>
+            <geom name="right_index_finger_roll2_link_visual" mesh="right_index_finger_roll2_link_visual" class="visual"/>
+            <geom name="right_index_finger_roll2_link_collision" mesh="right_index_finger_roll2_link_collision" class="collision"/>
+            <site name="right_index_finger_roll2_reference_site" pos="0.0075 0 0" class="reference"/>
+            <body name="right_index_finger_roll3_link" pos="0.0002 0.0268 0">
+              <inertial pos="0.00712908 0.00974858 -0.00115206" mass="0.01948352"
+                        fullinertia="1.91E-06 8.2E-07 1.87E-06 -1.1E-07 2E-08 7E-08"/>
+              <joint name="right_index_finger_roll3_joint" axis="-1 0 0" range="-1.62 0.07"
+                     actuatorfrcrange="-0.8 0.8"/>
+              <geom name="right_index_finger_roll3_link_visual" mesh="right_index_finger_roll3_link_visual" class="visual"/>
+              <geom name="right_index_finger_roll3_link_collision" mesh="right_index_finger_roll3_link_collision" class="collision"/>
+              <site name="right_index_finger_roll3_reference_site" pos="0.0075 0 0" class="reference"/>
+              <site name="right_index_finger_tip_reference_site" pos="0.00776 0.02682 0" class="reference"/>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <body name="right_middle_finger_roll1_link" pos="0.016424 0.09018 -5.0005E-05"
+            quat="0.9999619243 0 0 -0.008726389244">
+        <inertial pos="-0.00847094 0.01151783 -0.00079090" mass="0.00642259"
+                  fullinertia="4.4E-08 4.7E-08 4.4E-08 -2E-09 0 -3E-09"/>
+        <joint name="right_middle_finger_roll1_joint" axis="1 0 0" range="-0.05 1.71"
+               actuatorfrcrange="-1.5 1.5"/>
+        <geom name="right_middle_finger_roll1_link_visual" mesh="right_middle_finger_roll1_link_visual" class="visual"/>
+        <geom name="right_middle_finger_roll1_link_collision" mesh="right_middle_finger_roll1_link_collision" class="collision"/>
+        <site name="right_middle_finger_roll1_reference_site" pos="-0.008 0 0" class="reference"/>
+        <body name="right_middle_finger_yaw_link"
+              pos="-0.00800000000000052 0.0171499996946884 -0.00765000068445691">
+          <inertial pos="3.576E-05 0.00916946 0.0064372" mass="0.01829804"
+                    fullinertia="1.72E-06 8.6E-07 1.73E-06 0 0 -1E-08"/>
+          <joint name="right_middle_finger_yaw_joint" axis="0 0 -0.999999999999999"
+                 range="-0.35 0.35" actuatorfrcrange="-0.8 0.8"/>
+          <geom name="right_middle_finger_yaw_link_visual" mesh="right_middle_finger_yaw_link_visual" class="visual"/>
+          <geom name="right_middle_finger_yaw_link_collision" mesh="right_middle_finger_yaw_link_collision" class="collision"/>
+          <site name="right_middle_finger_yaw_reference_site" pos="0 0 0.0075" class="reference"/>
+          <body name="right_middle_finger_roll2_link" pos="-0.00795 0.0268 0.00925">
+            <inertial pos="0.00731818 0.00907496 -0.00107406" mass="0.01765506"
+                      fullinertia="1.61E-06 8.2E-07 1.63E-06 -9E-08 2E-08 8E-08"/>
+            <joint name="right_middle_finger_roll2_joint" axis="-1 0 0" range="-1.62 0.07"
+                   actuatorfrcrange="-0.8 0.8"/>
+            <geom name="right_middle_finger_roll2_link_visual" mesh="right_middle_finger_roll2_link_visual" class="visual"/>
+            <geom name="right_middle_finger_roll2_link_collision" mesh="right_middle_finger_roll2_link_collision" class="collision"/>
+            <site name="right_middle_finger_roll2_reference_site" pos="0.0075 0 0" class="reference"/>
+            <body name="right_middle_finger_roll3_link" pos="0.0002 0.0268 0">
+              <inertial pos="0.00712908 0.00974858 -0.00115206" mass="0.01948352"
+                        fullinertia="1.91E-06 8.2E-07 1.87E-06 -1.1E-07 2E-08 75E-08"/>
+              <joint name="right_middle_finger_roll3_joint" axis="-1 0 0" range="-1.62 0.07"
+                     actuatorfrcrange="-0.8 0.8"/>
+              <geom name="right_middle_finger_roll3_link_visual" mesh="right_middle_finger_roll3_link_visual" class="visual"/>
+              <geom name="right_middle_finger_roll3_link_collision" mesh="right_middle_finger_roll3_link_collision" class="collision"/>
+              <site name="right_middle_finger_roll3_reference_site" pos="0.0075 0 0" class="reference"/>
+              <site name="right_middle_finger_tip_reference_site" pos="0.00776 0.02682 0" class="reference"/>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <body name="right_ring_finger_roll1_link" pos="-0.0038776 0.08246 -5.0005E-05"
+            quat="0.9992290326 0 0 0.03925990752">
+        <inertial pos="-0.00847094 0.01151783 -0.00079090" mass="0.00642259"
+                  fullinertia="4.4E-07 4.7E-07 4.4E-07 -2E-08 0 -3E-08"/>
+        <joint name="right_ring_finger_roll1_joint" axis="1 0 0" range="-0.05 1.71"
+               actuatorfrcrange="-1.5 1.5"/>
+        <geom name="right_ring_finger_roll1_link_visual" mesh="right_ring_finger_roll1_link_visual" class="visual"/>
+        <geom name="right_ring_finger_roll1_link_collision" mesh="right_ring_finger_roll1_link_collision" class="collision"/>
+        <site name="right_ring_finger_roll1_reference_site" pos="-0.008 0 0" class="reference"/>
+        <body name="right_ring_finger_yaw_link"
+              pos="-0.00800000000000051 0.0171499996937909 -0.00765000068646882">
+          <inertial pos="3.576E-05 0.00916946 0.0064372" mass="0.01829804"
+                    fullinertia="1.72E-06 8.6E-07 1.73E-06 0 0 -1E-08"/>
+          <joint name="right_ring_finger_yaw_joint" axis="0 0 -0.999999999999999"
+                 range="-0.35 0.35" actuatorfrcrange="-0.8 0.8"/>
+          <geom name="right_ring_finger_yaw_link_visual" mesh="right_ring_finger_yaw_link_visual" class="visual"/>
+          <geom name="right_ring_finger_yaw_link_collision" mesh="right_ring_finger_yaw_link_collision" class="collision"/>
+          <site name="right_ring_finger_yaw_reference_site" pos="0 0 0.0075" class="reference"/>
+          <body name="right_ring_finger_roll2_link" pos="-0.00795 0.0268 0.00925">
+            <inertial pos="0.00731818 0.00907496 -0.00107406" mass="0.01765506"
+                      fullinertia="1.61E-06 8.2E-07 1.63E-06 -9E-08 2E-08 8E-08"/>
+            <joint name="right_ring_finger_roll2_joint" axis="-1 0 0" range="-1.62 0.07"
+                   actuatorfrcrange="-0.8 0.8"/>
+            <geom name="right_ring_finger_roll2_link_visual" mesh="right_ring_finger_roll2_link_visual" class="visual"/>
+            <geom name="right_ring_finger_roll2_link_collision" mesh="right_ring_finger_roll2_link_collision" class="collision"/>
+            <site name="right_ring_finger_roll2_reference_site" pos="0.0075 0 0" class="reference"/>
+            <body name="right_ring_finger_roll3_link" pos="0.0002 0.0268 0">
+              <inertial pos="0.00712908 0.00974858 -0.00115206" mass="0.01948352"
+                        fullinertia="1.91E-06 8.2E-07 1.87E-06 -1.1E-07 2E-08 7E-08"/>
+              <joint name="right_ring_finger_roll3_joint" axis="-1 0 0" range="-1.62 0.07"
+                     actuatorfrcrange="-0.8 0.8"/>
+              <geom name="right_ring_finger_roll3_link_visual" mesh="right_ring_finger_roll3_link_visual" class="visual"/>
+              <geom name="right_ring_finger_roll3_link_collision" mesh="right_ring_finger_roll3_link_collision" class="collision"/>
+              <site name="right_ring_finger_roll3_reference_site" pos="0.0075 0 0" class="reference"/>
+              <site name="right_ring_finger_tip_reference_site" pos="0.00776 0.02682 0" class="reference"/>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <body name="right_little_finger_pitch_link" pos="-0.018284 0.043667 0.0045"
+            quat="0.9392494114 -0.01639840101 -0.339834321 0.04532405318">
+        <inertial pos="-0.00918994 0.00597022 0.00074414" mass="0.05391627"
+                  fullinertia="1.28E-05 4.58E-06 1.266E-05 1E-06 -3.8E-07 2.3E-07"/>
+        <joint name="right_little_finger_pitch_joint" axis="0 0.9968 0.079914" range="0 0.43"
+               actuatorfrcrange="-0.8 0.8"/>
+        <geom name="right_little_finger_pitch_link_visual" mesh="right_little_finger_pitch_link_visual" class="visual"/>
+        <geom name="right_little_finger_pitch_link_collision" mesh="right_little_finger_pitch_link_collision" class="collision"/>
+        <body name="right_little_finger_roll1_link"
+              pos="-0.00434181319737461 0.0261012867228211 -0.000232431951276797"
+              quat="0.9391710772 0.05080002306 0.3359051044 0.05044607255">
+          <inertial pos="-0.00847094 0.01151783 -0.00079090" mass="0.00642259"
+                    fullinertia="4.4E-07 4.7E-07 4.4E-07 -2E-08 0 -3E-08"/>
+          <joint name="right_little_finger_roll1_joint" axis="1 0 0" range="-0.05 1.71"
+                 actuatorfrcrange="-1.5 1.5"/>
+          <geom name="right_little_finger_roll1_link_visual" mesh="right_little_finger_roll1_link_visual" class="visual"/>
+          <geom name="right_little_finger_roll1_link_collision" mesh="right_little_finger_roll1_link_collision" class="collision"/>
+          <site name="right_little_finger_roll1_reference_site" pos="-0.008 0 0" class="reference"/>
+          <body name="right_little_finger_yaw_link"
+                pos="-0.00800000000000051 0.0171510326859554 -0.00764768447343976">
+            <inertial pos="3.576E-05 0.00916946 0.0064372" mass="0.01829804"
+                      fullinertia="1.72E-06 8.6E-07 1.73E-06 0 0 -1E-08"/>
+            <joint name="right_little_finger_yaw_joint"
+                   axis="0 0.000135012060477746 -0.999999990885872" range="-0.35 0.35"
+                   actuatorfrcrange="-0.8 0.8"/>
+            <geom name="right_little_finger_yaw_link_visual" mesh="right_little_finger_yaw_link_visual" class="visual"/>
+            <geom name="right_little_finger_yaw_link_collision" mesh="right_little_finger_yaw_link_collision" class="collision"/>
+            <site name="right_little_finger_yaw_reference_site" pos="0 -0.00000101 0.0075" class="reference"/>
+            <body name="right_little_finger_roll2_link" pos="-0.00795 0.026799 0.0092536">
+              <inertial pos="0.00731818 0.00907496 -0.00107406" mass="0.01765506"
+                        fullinertia="1.61E-06 8.2E-07 1.63E-06 -9E-08 2E-08 8E-08"/>
+              <joint name="right_little_finger_roll2_joint" axis="-1 0 0" range="-1.62 0.07"
+                     actuatorfrcrange="-0.8 0.8"/>
+              <geom name="right_little_finger_roll2_link_visual" mesh="right_little_finger_roll2_link_visual" class="visual"/>
+              <geom name="right_little_finger_roll2_link_collision" mesh="right_little_finger_roll2_link_collision" class="collision"/>
+              <site name="right_little_finger_roll2_reference_site" pos="0.0075 0 0" class="reference"/>
+              <body name="right_little_finger_roll3_link" pos="0.0002 0.0268 0">
+                <inertial pos="0.00712908 0.00974858 -0.00115206" mass="0.01948352"
+                          fullinertia="1.91E-06 8.2E-07 1.87E-06 -1.1E-07 26E-08 7E-08"/>
+                <joint name="right_little_finger_roll3_joint" axis="-1 0 0" range="-1.62 0.07"
+                       actuatorfrcrange="-0.8 0.8"/>
+                <geom name="right_little_finger_roll3_link_visual" mesh="right_little_finger_roll3_link_visual" class="visual"/>
+                <geom name="right_little_finger_roll3_link_collision" mesh="right_little_finger_roll3_link_collision" class="collision"/>
+                <site name="right_little_finger_roll3_reference_site" pos="0.0075 0 0" class="reference"/>
+                <site name="right_little_finger_tip_reference_site" pos="0.00776 0.02682 0" class="reference"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <position name="right_thumb_pitch_ctrl" joint="right_thumb_pitch_joint" ctrlrange="0 1.57"/>
+    <position name="right_thumb_roll_ctrl" joint="right_thumb_roll_joint" ctrlrange="-1.57 0.13"/>
+    <position name="right_thumb_yaw1_ctrl" joint="right_thumb_yaw1_joint" ctrlrange="0 2.61"/>
+    <position name="right_thumb_yaw2_ctrl" joint="right_thumb_yaw2_joint" ctrlrange="-1.62 0.07"/>
+    <position name="right_thumb_yaw3_ctrl" joint="right_thumb_yaw3_joint" ctrlrange="-1.62 0.07"/>
+    <position name="right_index_finger_roll1_ctrl" joint="right_index_finger_roll1_joint" ctrlrange="-0.05 1.71"/>
+    <position name="right_index_finger_yaw_ctrl" joint="right_index_finger_yaw_joint" ctrlrange="-0.35 0.35"/>
+    <position name="right_index_finger_roll2_ctrl" joint="right_index_finger_roll2_joint" ctrlrange="-1.62 0.07"/>
+    <position name="right_index_finger_roll3_ctrl" joint="right_index_finger_roll3_joint" ctrlrange="-1.62 0.07"/>
+    <position name="right_middle_finger_roll1_ctrl" joint="right_middle_finger_roll1_joint" ctrlrange="-0.05 1.71"/>
+    <position name="right_middle_finger_yaw_ctrl" joint="right_middle_finger_yaw_joint" ctrlrange="-0.35 0.35"/>
+    <position name="right_middle_finger_roll2_ctrl" joint="right_middle_finger_roll2_joint" ctrlrange="-1.62 0.07"/>
+    <position name="right_middle_finger_roll3_ctrl" joint="right_middle_finger_roll3_joint" ctrlrange="-1.62 0.07"/>
+    <position name="right_ring_finger_roll1_ctrl" joint="right_ring_finger_roll1_joint" ctrlrange="-0.05 1.71"/>
+    <position name="right_ring_finger_yaw_ctrl" joint="right_ring_finger_yaw_joint" ctrlrange="-0.35 0.35"/>
+    <position name="right_ring_finger_roll2_ctrl" joint="right_ring_finger_roll2_joint" ctrlrange="-1.62 0.07"/>
+    <position name="right_ring_finger_roll3_ctrl" joint="right_ring_finger_roll3_joint" ctrlrange="-1.62 0.07"/>
+    <position name="right_little_finger_pitch_ctrl" joint="right_little_finger_pitch_joint" ctrlrange="0 0.43"/>
+    <position name="right_little_finger_roll1_ctrl" joint="right_little_finger_roll1_joint" ctrlrange="-0.05 1.71"/>
+    <position name="right_little_finger_yaw_ctrl" joint="right_little_finger_yaw_joint" ctrlrange="-0.35 0.35"/>
+    <position name="right_little_finger_roll2_ctrl" joint="right_little_finger_roll2_joint" ctrlrange="-1.62 0.07"/>
+    <position name="right_little_finger_roll3_ctrl" joint="right_little_finger_roll3_joint" ctrlrange="-1.62 0.07"/>
+  </actuator>
+
+  <contact>
+    <exclude body1="palm_link" body2="right_thumb_pitch_link"/>
+    <exclude body1="right_thumb_pitch_link" body2="right_thumb_roll_link"/>
+    <exclude body1="right_thumb_roll_link" body2="right_thumb_yaw1_Link"/>
+    <exclude body1="right_thumb_yaw1_Link" body2="right_thumb_yaw2_link"/>
+    <exclude body1="right_thumb_yaw2_link" body2="right_thumb_yaw3_link"/>
+    <exclude body1="palm_link" body2="right_index_finger_roll1_link"/>
+    <exclude body1="right_index_finger_roll1_link" body2="right_index_finger_yaw_link"/>
+    <exclude body1="right_index_finger_yaw_link" body2="right_index_finger_roll2_link"/>
+    <exclude body1="right_index_finger_roll2_link" body2="right_index_finger_roll3_link"/>
+    <exclude body1="palm_link" body2="right_middle_finger_roll1_link"/>
+    <exclude body1="right_middle_finger_roll1_link" body2="right_middle_finger_yaw_link"/>
+    <exclude body1="right_middle_finger_yaw_link" body2="right_middle_finger_roll2_link"/>
+    <exclude body1="right_middle_finger_roll2_link" body2="right_middle_finger_roll3_link"/>
+    <exclude body1="palm_link" body2="right_ring_finger_roll1_link"/>
+    <exclude body1="right_ring_finger_roll1_link" body2="right_ring_finger_yaw_link"/>
+    <exclude body1="right_ring_finger_yaw_link" body2="right_ring_finger_roll2_link"/>
+    <exclude body1="right_ring_finger_roll2_link" body2="right_ring_finger_roll3_link"/>
+    <exclude body1="palm_link" body2="right_little_finger_pitch_link"/>
+    <exclude body1="right_little_finger_pitch_link" body2="right_little_finger_roll1_link"/>
+    <exclude body1="right_little_finger_roll1_link" body2="right_little_finger_yaw_link"/>
+    <exclude body1="right_little_finger_yaw_link" body2="right_little_finger_roll2_link"/>
+    <exclude body1="right_little_finger_roll2_link" body2="right_little_finger_roll3_link"/>
+    <!-- Palm vs. non-adjacent proximal links: these collision meshes embed into the
+         palm at the metacarpal root, so they produce a persistent contact force that
+         fights any root-joint motion (e.g. thumb_pitch/thumb_roll jitter).  They are
+         not real inter-finger collisions, so they are excluded. -->
+    <exclude body1="palm_link" body2="right_thumb_roll_link"/>
+    <exclude body1="palm_link" body2="right_thumb_yaw1_Link"/>
+    <exclude body1="palm_link" body2="right_little_finger_roll1_link"/>
+    <exclude body1="palm_link" body2="right_index_finger_yaw_link"/>
+  </contact>
+</mujoco>

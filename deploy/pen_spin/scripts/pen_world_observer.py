@@ -14,11 +14,13 @@ import argparse
 import json
 import math
 import os
+import subprocess
 import sys
 import time
 from collections import deque
 from contextlib import ExitStack
 from functools import lru_cache
+from pathlib import Path
 
 import numpy as np
 import zmq
@@ -186,7 +188,7 @@ def _pen_wireframe(layout):
   return np.asarray(pts, dtype=np.float64), edges
 
 
-def _draw_pose(vis, pose, K, dist, layout, cv2):
+def _draw_pose(vis, pose, K, dist, layout, cv2, axis_radius_m: float = 0.0):
   """Project the pen model and a body-frame axis triad through the solved pose."""
   rvec, tvec = pose.rvec.reshape(3, 1), pose.tvec.reshape(3, 1)
   colour = (0, 165, 255) if pose.coplanar else (0, 255, 0)
@@ -210,6 +212,67 @@ def _draw_pose(vis, pose, K, dist, layout, cv2):
       cv2.arrowedLine(vis, o, tuple(a[i].astype(int)), c, 2, tipLength=0.25)
     cv2.circle(vis, o, 4, (255, 255, 255), -1)
 
+  # The policy's axis-point representation: pen origin ±radius along the
+  # shaft (+Z source = A_top side). Mark the pen at radius from its centre —
+  # the dots should land exactly on the marks if the chain is accurate.
+  if axis_radius_m > 0:
+    ep = np.float64([[0, 0, axis_radius_m], [0, 0, -axis_radius_m]])
+    e, _ = cv2.projectPoints(ep, rvec, tvec, K, dist)
+    e = e.reshape(-1, 2)
+    if np.all(np.isfinite(e)):
+      for pt, text, c in ((0, f"+{axis_radius_m * 1e3:.0f}mm", (255, 255, 0)),
+                          (1, f"-{axis_radius_m * 1e3:.0f}mm", (0, 255, 255))):
+        cv2.circle(vis, tuple(e[pt].astype(int)), 6, c, -1)
+        cv2.circle(vis, tuple(e[pt].astype(int)), 8, (0, 0, 0), 1)
+        cv2.putText(vis, text, (int(e[pt][0]) + 10, int(e[pt][1]) - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, c, 2)
+
+
+def _draw_palm_frame(vis, world, tag_in_palm_pos, tag_in_palm_quat,
+                     label, K, dist, cv2, L: float = 0.04):
+  """Project the palm_link origin + XYZ triad into the image.
+
+  Chain: camera -> tag (the fixed world calibration) -> palm (inverse of the
+  tag's pose in the palm frame). Drawn like the pen axis triad."""
+  from lib.math_utils import quat_apply, quat_inv
+  qi = quat_inv(np.asarray(tag_in_palm_quat, dtype=np.float64))
+  palm_origin_tag = quat_apply(qi, -np.asarray(tag_in_palm_pos, dtype=np.float64))
+  R_wc = world.R_cw.T                      # tag axes in the camera frame
+  t_wc = -R_wc @ world.t_cw                # tag origin in the camera frame
+  origin = R_wc @ palm_origin_tag + t_wc   # palm origin in the camera frame
+  R_pc = R_wc @ matrix_from_quat(qi)       # palm axes in the camera frame
+  pts = np.vstack([origin,
+                   origin + R_pc[:, 0] * L,
+                   origin + R_pc[:, 1] * L,
+                   origin + R_pc[:, 2] * L]).reshape(-1, 1, 3)
+  a, _ = cv2.projectPoints(pts, np.zeros((3, 1)), np.zeros((3, 1)), K, dist)
+  a = a.reshape(-1, 2)
+  if not np.all(np.isfinite(a)):
+    return
+  o = tuple(a[0].astype(int))
+  for i, c in ((1, (0, 0, 255)), (2, (0, 255, 0)), (3, (255, 0, 0))):
+    cv2.arrowedLine(vis, o, tuple(a[i].astype(int)), c, 2, tipLength=0.25)
+  cv2.circle(vis, o, 5, (255, 0, 255), -1)
+  cv2.putText(vis, label, (o[0] + 8, o[1] - 8),
+              cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)
+
+
+def _draw_palm_readout(vis, title, rows, cv2):
+  """Top-right text panel: point coords (mm) and |d| in the palm frame."""
+  pad, lh, w = 8, 22, 336
+  x0, y0 = vis.shape[1] - w - 10, 52
+  h = pad * 2 + lh * (len(rows) + 1)
+  cv2.rectangle(vis, (x0, y0), (x0 + w, y0 + h), (0, 0, 0), -1)
+  cv2.rectangle(vis, (x0, y0), (x0 + w, y0 + h), (80, 80, 80), 1)
+  cv2.putText(vis, title, (x0 + pad, y0 + pad + 12),
+              cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1)
+  for i, (lbl, p, colour) in enumerate(rows):
+    d = np.linalg.norm(p) * 1e3
+    txt = (f"{lbl:8s} ({p[0]*1e3:5.0f},{p[1]*1e3:5.0f},{p[2]*1e3:5.0f})"
+           f"  |d|={d:5.0f}")
+    cv2.putText(vis, txt, (x0 + pad, y0 + pad + 12 + lh * (i + 1)),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.45, colour, 1)
+
 
 def _draw_world_tag(vis, transform, K, dist, cv2, *, fixed=False):
   """Draw the detected tag or the fixed calibration used by the publisher.
@@ -228,6 +291,16 @@ def _draw_world_tag(vis, transform, K, dist, cv2, *, fixed=False):
     return
   colour = (255, 255, 0) if fixed else (0, 255, 255)
   cv2.polylines(vis, [uv.astype(int)], True, colour, 2)
+  # Tag-frame axis triad at the tag centre — read these off the preview to
+  # describe the tag's orientation for a mount calibration.
+  L = 0.03
+  axes = np.float64([[0, 0, 0], [L, 0, 0], [0, L, 0], [0, 0, L]])
+  a, _ = cv2.projectPoints(axes, rvec, t, K, dist)
+  a = a.reshape(-1, 2)
+  if np.all(np.isfinite(a)):
+    o = tuple(a[0].astype(int))
+    for i, c in ((1, (0, 0, 255)), (2, (0, 255, 0)), (3, (255, 0, 0))):
+      cv2.arrowedLine(vis, o, tuple(a[i].astype(int)), c, 2, tipLength=0.25)
   label = "world FIXED" if fixed else f"base tag {WORLD_TAG_ID} LIVE"
   anchor = (int(uv[:, 0].min()),
             int(uv[:, 1].max() + 18 if fixed else uv[:, 1].min() - 8))
@@ -297,6 +370,20 @@ def main() -> int:
   ap.add_argument("--camera-serial", help="RealSense device serial number")
   ap.add_argument("--max-frames", type=int, help="stop after N frames (bench checks)")
   ap.add_argument("--diagnostics", help="write per-frame measurements to a new JSONL file")
+  ap.add_argument("--record-dir",
+                  help="segment recording root: creates run_<timestamp>/ with "
+                       "key-marked static_NN/dynamic_NN/other JSONL files and "
+                       "auto-runs summarize+plot per segment on exit "
+                       "(preview keys: 1=static 2=dynamic, press again to stop, "
+                       "0=unmarked)")
+  ap.add_argument("--palm-frame", choices=["z5", "hand2"], default="z5",
+                  help="palm frame shown in the preview readout panel")
+  ap.add_argument("--axis-points-mm", type=float, default=100.0,
+                  help="draw the policy's ±N mm shaft axis points on the "
+                  "preview (0 disables); matches axis_point_radius_m=0.10")
+  ap.add_argument("--segment-seconds", type=float, default=30.0,
+                  help="auto-end the active segment after this many seconds "
+                       "(0 disables; default 30)")
   ap.add_argument("--video", help="path/device for --source video")
   ap.add_argument("--port", type=int, default=PEN_PORT)
   ap.add_argument("--rate-hz", type=float, default=90.0)
@@ -329,6 +416,8 @@ def main() -> int:
     ap.error('--detector-profile experiments require --stereo --detect-only')
   if args.stereo and (args.source != 'realsense' or not args.detect_only):
     ap.error('--stereo requires --source realsense --detect-only')
+  if args.record_dir and args.detect_only:
+    ap.error('--record-dir records pen poses; it does not apply to --detect-only')
   if args.detect_hz is not None:
     if not np.isfinite(args.detect_hz) or args.detect_hz <= 0:
       ap.error("--detect-hz must be finite and positive")
@@ -338,6 +427,8 @@ def main() -> int:
     ap.error("--exposure-us must be finite and positive")
   if args.world_frames < 1:
     ap.error("--world-frames must be positive")
+  if args.segment_seconds < 0 or not np.isfinite(args.segment_seconds):
+    ap.error("--segment-seconds must be finite and nonnegative")
 
   if args.max_frames is not None and args.max_frames < 1:
     ap.error("--max-frames must be positive")
@@ -349,6 +440,8 @@ def main() -> int:
     cfg['capture']['exposure_time'] = args.exposure_us
   if args.camera_serial and args.source != "realsense":
     ap.error("--camera-serial requires --source realsense")
+  recorder = (SegmentRecorder(args.record_dir, limit_s=args.segment_seconds)
+              if args.record_dir else None)
   with ExitStack() as resources:
     diagnostics = (resources.enter_context(open(args.diagnostics, 'x', encoding='utf-8'))
                    if args.diagnostics else None)
@@ -357,13 +450,38 @@ def main() -> int:
       from lib.realsense_camera import RealSenseCamera
       camera = resources.enter_context(RealSenseCamera(cfg, serial=args.camera_serial, stereo=args.stereo))
       cfg = camera.cfg
-    return _run_observer(args, cfg, config_file, camera, diagnostics)
+    try:
+      rc = _run_observer(args, cfg, config_file, camera, diagnostics, recorder)
+    finally:
+      if recorder is not None:
+        recorder.close_all()
+    if recorder is not None:
+      recorder.analyze()
+    return rc
 
 
-def _run_observer(args, cfg, config_file, camera=None, diagnostics=None):
+def _run_observer(args, cfg, config_file, camera=None, diagnostics=None, recorder=None):
   import cv2
   from lib.detection_roi import RoiSelector, frame_roi, save_selection
   from lib.pen_pose import PenPoseEstimator, PenTagLayout
+  if getattr(args, "palm_frame", "z5") == "z5":
+    from lib.z5_tag_frame import (pen_in_z5_palm as _palm_lift,
+                                  Z5_TAG_IN_PALM_POS as _PALM_TAG_POS,
+                                  Z5_TAG_IN_PALM_QUAT as _PALM_TAG_QUAT)
+    _palm_label = "z5 palm_link"
+  else:
+    from lib.tag_frame import (pen_in_palm as _palm_lift,
+                               TAG_IN_PALM_POS as _PALM_TAG_POS,
+                               TAG_IN_PALM_QUAT as _PALM_TAG_QUAT)
+    _palm_label = "hand2 palm"
+  cal_pos = np.asarray(_PALM_TAG_POS, dtype=np.float64).copy()
+  cal_quat = np.asarray(_PALM_TAG_QUAT, dtype=np.float64).copy()
+
+  def _lift(p, q):
+    from lib.math_utils import (normalize_quat as _nq, quat_apply as _qa,
+                                quat_mul as _qm)
+    return (cal_pos + _qa(cal_quat, np.asarray(p, dtype=np.float64)),
+            _nq(_qm(cal_quat, np.asarray(q, dtype=np.float64))))
   if args.preview:
     from lib.preview_ui import configure_qt_fonts
     configure_qt_fonts()
@@ -394,6 +512,10 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None):
   print("[pen observer] raw PnP; every solved frame is published as measured, "
         "nothing is smoothed, gated or held")
   print("[pen observer] visibility checks enabled; planar candidates use continuity only for similar pixel errors")
+  if recorder is not None:
+    print(f"[recorder] segments -> {recorder.run_dir} "
+          "(keys: 1=static 2=dynamic, same key stops, 0=unmarked; "
+          "summarize+plot on exit)")
   if args.no_world_tag:
     print("[pen observer] WARNING: publishing in the CAMERA frame "
           "(--no-world-tag); the policy expects the wrist-tag frame.")
@@ -481,7 +603,7 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None):
         # Initial wrist sampling and an explicit resample are not pen dropouts.
         run_start = measured_t
         last_valid_t = None
-      if diagnostics is not None:
+      if diagnostics is not None or recorder is not None:
         record = dict(t_monotonic_s=measured_t, world_fixed=frame_fixed,
                       processing_ms=processing_ms[-1], source=args.source,
                       position=None if pos is None else pos.tolist(),
@@ -489,11 +611,17 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None):
                       tag_ids=[] if pose is None else list(pose.tag_ids),
                       reproj_px=None if pose is None else float(pose.reproj_px),
                       coplanar=None if pose is None else bool(pose.coplanar))
+        if recorder is not None:
+          record["segment"] = recorder.label
         if camera is not None:
           record.update(capture_fps=camera.capture_fps,
                         actual_exposure_us=camera.actual_exposure_us,
                         skipped_frames=camera.skipped_frames)
-        diagnostics.write(json.dumps(record) + "\n")
+        line = json.dumps(record) + "\n"
+        if diagnostics is not None:
+          diagnostics.write(line)
+        if recorder is not None:
+          recorder.write(record)
       frame_now = time.monotonic()
       frame_times.append(frame_now)
       while len(frame_times) > 2 and frame_times[1] < frame_now - 1.0:
@@ -508,6 +636,8 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None):
             R_wc = world.R_cw.T
             _draw_world_tag(vis, (R_wc, -R_wc @ world.t_cw), K, dist, cv2,
                             fixed=True)
+            _draw_palm_frame(vis, world, cal_pos, cal_quat,
+                             _palm_label, K, dist, cv2)
           elif wt is not None:
             _draw_world_tag(vis, wt, K, dist, cv2)
         detections = getattr(est, 'last_detection', None) if frame_fixed else None
@@ -522,7 +652,8 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None):
           cv2.putText(vis, str(tid), tuple(quad[0].astype(int)),
                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 200, 255), 1)
         if pose is not None:
-          _draw_pose(vis, pose, K, dist, est.layout, cv2)
+          _draw_pose(vis, pose, K, dist, est.layout, cv2,
+                     axis_radius_m=args.axis_points_mm * 1e-3)
           faces = sorted({est.layout.face_normal[t] for t in pose.tag_ids})
           d_mm = float(np.linalg.norm(pose.pos)) * 1000.0
           cv2.putText(vis, f"{pose.num_tags} tags / {len(faces)} faces {faces}  "
@@ -530,6 +661,15 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None):
                            f"{'  PLANAR AMBIGUOUS' if pose.ambiguous else '  COPLANAR' if pose.coplanar else ''}",
                       (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
                       (0, 165, 255) if pose.coplanar else (0, 255, 0), 2)
+          if pos is not None and not args.no_world_tag:
+            pp, pq = _lift(pos, quat)
+            r_ = args.axis_points_mm * 1e-3
+            axis = matrix_from_quat(pq)[:, 2] * r_
+            _draw_palm_readout(
+                vis, f"{getattr(args, 'palm_frame', 'z5')} palm_link  xyz mm / |d| mm",
+                [(f"+{r_*1e3:.0f}mm", pp + axis, (255, 255, 0)),
+                 ("origin", pp, (255, 255, 255)),
+                 (f"-{r_*1e3:.0f}mm", pp - axis, (0, 255, 255))], cv2)
         else:
           reason = getattr(est, "last_rejection", "")
           cv2.putText(vis, f"no pose: {reason}" if reason else "no pose", (10, 30),
@@ -548,10 +688,24 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None):
                    f"{'base tag SEEN' if world_seen else 'show the wrist AprilTag id 0'}")
             col = (0, 255, 255) if world_seen else (0, 165, 255)
           cv2.putText(vis, txt, (10, 58), cv2.FONT_HERSHEY_SIMPLEX, 0.55, col, 2)
+          if world.fixed:
+            cal = (f"palm cal mm (i/k=Y j/l=X u/o=Z, shift=x10, r=reset, p=print): "
+                   f"({cal_pos[0]*1e3:+.1f},{cal_pos[1]*1e3:+.1f},{cal_pos[2]*1e3:+.1f})")
+            cv2.putText(vis, cal, (10, vis.shape[0] - 110),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 0), 1)
         selector.draw(vis, detection_roi)
         cv2.putText(vis, 'RAW PnP', (10, vis.shape[0]-38), cv2.FONT_HERSHEY_SIMPLEX,
                     .5, (255, 200, 0), 1)
         stats = f"Observer FPS: {observer_fps:.1f}" if observer_fps is not None else "Observer FPS: --"
+        if recorder is not None and recorder.label is not None:
+          elapsed = recorder.elapsed or 0.0
+          limit = f"/{recorder.limit_s:.0f}s" if recorder.limit_s else ""
+          badge = f"REC {recorder.label.upper()} {elapsed:.0f}s{limit}"
+          (bx, by), (bw, bh) = (vis.shape[1] - 270, 10), (260, 36)
+          cv2.rectangle(vis, (bx - 6, by - 6), (bx + bw, by + bh), (0, 0, 0), -1)
+          cv2.rectangle(vis, (bx - 6, by - 6), (bx + bw, by + bh), (0, 0, 255), 2)
+          cv2.putText(vis, badge, (bx, by + 25), cv2.FONT_HERSHEY_SIMPLEX,
+                      0.7, (0, 0, 255), 2)
         if args.source == 'camera':
           stats += f" | Exposure set: {cfg['capture']['exposure_time']/1000.:g} ms"
         if camera is not None:
@@ -571,8 +725,36 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None):
         if k == ord("w"):
           world.reset()
           print("[pen observer] resampling the world frame")
+        if recorder is not None and k in (ord("1"), ord("2")):
+          label = SegmentRecorder.LABELS[chr(k)]
+          if recorder.label == label:
+            recorder.end()          # same key again stops the segment
+          else:
+            recorder.begin(label)
+        if recorder is not None and k == ord("0"):
+          recorder.end()
+        if (recorder is not None and recorder.label is not None
+                and recorder.limit_s and (recorder.elapsed or 0.0) >= recorder.limit_s):
+          print(f"[recorder] {recorder.label} auto-stop after "
+                f"{recorder.limit_s:.0f}s", flush=True)
+          recorder.end()
         if k == ord("s"):
           selector.begin()
+        if k in (ord("i"), ord("k"), ord("j"), ord("l"), ord("u"), ord("o"),
+                 ord("I"), ord("K"), ord("J"), ord("L"), ord("U"), ord("O")):
+          step = 0.01 if chr(k).isupper() else 0.001
+          axis = {ord("I"): 1, ord("K"): 1, ord("J"): 0, ord("L"): 0,
+                  ord("U"): 2, ord("O"): 2}[k & 0xDF]
+          sign = {ord("I"): +1, ord("J"): -1, ord("U"): +1,
+                  ord("K"): -1, ord("L"): +1, ord("O"): -1}[k & 0xDF]
+          cal_pos[axis] += sign * step
+          print(f"[palm cal] tag_in_palm_pos = {np.round(cal_pos, 5)}")
+        if k == ord("r"):
+          cal_pos[:] = _PALM_TAG_POS
+          print(f"[palm cal] reset to default {np.round(cal_pos, 5)}")
+        if k == ord("p"):
+          print(f"[palm cal] Z5_TAG_IN_PALM_POS = np.array({cal_pos.tolist()})")
+          print(f"[palm cal] Z5_TAG_IN_PALM_QUAT = np.array({cal_quat.tolist()})")
         if k in (ord("c"), 27):
           selector.cancel()
         selection = None
@@ -661,6 +843,84 @@ def _source_frames(args, cfg, K, dist, layout, camera=None):
   else:
     return _camera_frames(cfg)
 
+
+
+class SegmentRecorder:
+  """Key-marked recording segments under one timestamped run directory.
+
+  Preview keys: 1 = static segment, 2 = dynamic segment, 0 = back to unmarked.
+  Each segment is its own JSONL so summarize/plot tools run per segment.
+  """
+
+  LABELS = {"1": "static", "2": "dynamic"}
+
+  def __init__(self, root, limit_s=0.0):
+    import time as _time
+    self.limit_s = float(limit_s)
+    base = Path(root)
+    base.mkdir(parents=True, exist_ok=True)
+    stamp = _time.strftime("run_%Y%m%d_%H%M%S")
+    self.run_dir = base / stamp
+    suffix = 1
+    while self.run_dir.exists():
+      suffix += 1
+      self.run_dir = base / f"{stamp}_{suffix}"
+    self.run_dir.mkdir()
+    self._other = open(self.run_dir / "other.jsonl", "x", encoding="utf-8")
+    self._current = None          # (label, seq, handle)
+    self._t0 = None
+    self.segments = []            # (label, Path) in start order
+
+  @property
+  def label(self):
+    return self._current[0] if self._current else None
+
+  @property
+  def elapsed(self):
+    return (time.monotonic() - self._t0) if self._t0 is not None else None
+
+  def begin(self, label):
+    self.end()
+    seq = 1 + sum(1 for lab, _ in self.segments if lab == label)
+    path = self.run_dir / f"{label}_{seq:02d}.jsonl"
+    handle = open(path, "x", encoding="utf-8")
+    self._current = (label, seq, handle)
+    self._t0 = time.monotonic()
+    self.segments.append((label, path))
+    print(f"[recorder] segment {label}_{seq:02d} -> {path}", flush=True)
+
+  def end(self):
+    if self._current is not None:
+      self._current[2].close()
+      self._current = None
+      self._t0 = None
+      print("[recorder] segment closed", flush=True)
+
+  def write(self, record):
+    handle = self._current[2] if self._current else self._other
+    handle.write(json.dumps(record) + "\n")
+
+  def close_all(self):
+    self.end()
+    self._other.close()
+
+  def analyze(self):
+    tools = Path(__file__).resolve().parent.parent / "tools"
+    for label, path in self.segments:
+      n = sum(1 for _ in open(path, encoding="utf-8"))
+      if n < 30:
+        print(f"[recorder] skip {path.name}: only {n} frames", flush=True)
+        continue
+      print(f"[recorder] summarizing {path.name} ({n} frames)", flush=True)
+      cmd = [sys.executable, str(tools / "summarize_observer.py"), str(path)]
+      if label == "static":
+        cmd.append("--static")
+      subprocess.run(cmd)
+      png = path.with_suffix(".png")
+      print(f"[recorder] plotting {path.name} -> {png.name}", flush=True)
+      subprocess.run([sys.executable, str(tools / "plot_observer.py"),
+                      str(path), "--output", str(png)])
+    print(f"[recorder] run directory: {self.run_dir}", flush=True)
 
 
 def _publish(pub, pose, world_fixed: bool) -> None:
