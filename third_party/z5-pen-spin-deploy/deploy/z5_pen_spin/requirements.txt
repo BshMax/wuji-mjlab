@@ -1,0 +1,8 @@
+# Standalone runtime; no Isaac Lab, Newton or mjlab required.
+numpy>=2.0
+torch>=2.7
+pyzmq>=26
+opencv-contrib-python>=4.10
+onnxruntime>=1.20
+# Optional CPU simulation also requires the MuJoCo version in policy_config.json.
+# unitree_sdk2py must be installed/built separately for the hardware Python ABI.

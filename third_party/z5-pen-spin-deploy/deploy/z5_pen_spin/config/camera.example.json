@@ -1,0 +1,10 @@
+{
+  "image_size": [1280, 720],
+  "camera_matrix": null,
+  "distortion": [0, 0, 0, 0, 0],
+  "pen_dictionary": "DICT_4X4_50",
+  "palm_dictionary": "DICT_APRILTAG_36h11",
+  "pen_markers": [],
+  "palm_markers": [],
+  "max_reprojection_error_px": 6.0
+}

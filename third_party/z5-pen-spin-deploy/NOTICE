@@ -1,0 +1,12 @@
+Terminal dashboard attribution
+
+The terminal dashboard in src/dex_supermimic/rl/dex_supermimic/console.py
+is adapted from IsaacLab3-SuperMimic's rl/logging.py, itself adapted from
+UniLab (Apache-2.0) unilab/rl/logging/offpolicy.py.
+
+UniSuperMimic
+Copyright 2026 UniSuperMimic Authors
+
+The Apache-2.0 license is preserved in LICENSES/Apache-2.0-terminal.txt.
+Changes here separate terminal presentation from the existing scalar writers,
+use Dex SuperMimic metrics, and preserve its training/checkpoint semantics.

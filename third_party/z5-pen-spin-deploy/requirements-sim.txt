@@ -1,0 +1,2 @@
+-r deploy/z5_pen_spin/requirements.txt
+mujoco==3.15.0

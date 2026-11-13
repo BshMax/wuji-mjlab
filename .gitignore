@@ -107,3 +107,8 @@ tests/debug/
 # Local training scratch (untracked), per task.
 src/wuji_mjlab/tasks/*/train_scripts/
 .k8s/
+
+# Z5 deployment artifacts (large binaries/regenerable)
+third_party/dex5_lonicera_package_x86_64_net/
+third_party/z5-pen-spin-deploy/generated/
+third_party/z5-pen-spin-deploy/checkpoints/
