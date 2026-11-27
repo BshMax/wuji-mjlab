@@ -109,12 +109,24 @@ class PenPoseEstimator:
     """
 
     def __init__(self, camera_matrix, dist_coeffs, *, layout: PenTagLayout | None = None,
-                 min_tags: int = 2, max_reproj_px: float = 4.0):
+                 min_tags: int = 2, max_reproj_px: float = 4.0,
+                 single_tag_fallback: bool = False,
+                 single_tag_max_reproj_px: float = 2.5,
+                 single_tag_max_rot_deg: float = 25.0,
+                 single_tag_max_trans_m: float = 0.035,
+                 single_tag_max_missed: int = 3,
+                 single_tag_max_streak: int = 5):
         self.layout = layout or PenTagLayout()
         self.K = np.asarray(camera_matrix, dtype=np.float64).reshape(3, 3)
         self.dist = np.asarray(dist_coeffs, dtype=np.float64).reshape(-1)
         self.min_tags = int(min_tags)
         self.max_reproj_px = float(max_reproj_px)
+        self.single_tag_fallback = bool(single_tag_fallback)
+        self.single_tag_max_reproj_px = float(single_tag_max_reproj_px)
+        self.single_tag_max_rot_deg = float(single_tag_max_rot_deg)
+        self.single_tag_max_trans_m = float(single_tag_max_trans_m)
+        self.single_tag_max_missed = int(single_tag_max_missed)
+        self.single_tag_max_streak = int(single_tag_max_streak)
 
         params = cv2.aruco.DetectorParameters()
         # The physical tags can be small, oblique, and close to the image edge.
@@ -159,8 +171,10 @@ class PenPoseEstimator:
         self.consensus_fast = 0
         self.consensus_full = 0
         self.rejected_appearance = 0
+        self.single_tag_solves = 0
         self.last_inlier_indices: tuple[int, ...] = ()
         self._missed = 0
+        self._single_tag_streak = 0
         self.collect_rejected = False
         self.last_rejected_quads = []
         self.batch_border_check = False
@@ -386,6 +400,58 @@ class PenPoseEstimator:
                     supports[indices] = min(supports.get(indices, float("inf")), error)
         return self._refit_consensus(ids, quads, supports)
 
+    def _single_tag_continuity_solve(self, ids, quads) -> PenPose | None:
+        """Guarded single-tag fallback to bridge brief finger occlusions.
+
+        Only fires from a warm multi-tag lock (_missed <= single_tag_max_missed
+        and _single_tag_streak < single_tag_max_streak), and requires strict
+        reprojection, visibility, and continuity to the previous pose so planar
+        IPPE flips or stray background markers cannot corrupt tracking.
+        """
+        if (not self.single_tag_fallback
+                or self._last_rvec is None
+                or self._last_tvec is None
+                or self._missed > self.single_tag_max_missed
+                or self._single_tag_streak >= self.single_tag_max_streak
+                or not ids):
+            return None
+        previous = cv2.Rodrigues(self._last_rvec)[0]
+        prev_t = self._last_tvec.reshape(3)
+        depth_scale = max(float(np.linalg.norm(prev_t)), 0.1)
+        best_choice = None
+        for idx, (tid, quad) in enumerate(zip(ids, quads, strict=True)):
+            visible, _, _ = self._fit([tid], [quad])
+            for err, rv, tv, rotation in visible:
+                if err > self.single_tag_max_reproj_px:
+                    continue
+                rot_rad = float(np.arccos(np.clip(
+                    (np.trace(rotation @ previous.T) - 1.0) * 0.5, -1.0, 1.0)))
+                if np.degrees(rot_rad) > self.single_tag_max_rot_deg:
+                    continue
+                shift_m = float(np.linalg.norm(tv.reshape(3) - prev_t))
+                if shift_m > self.single_tag_max_trans_m:
+                    continue
+                score = rot_rad + shift_m / depth_scale + 0.02 * err
+                if best_choice is None or score < best_choice[0]:
+                    best_choice = (score, idx, tid, err, rv, tv, rotation)
+        if best_choice is None:
+            return None
+        _, best_idx, best_tid, err, rvec, tvec, rotation = best_choice
+        self.single_tag_solves += 1
+        self.coplanar_solves += 1
+        self._single_tag_streak += 1
+        self._missed = 0
+        self._last_rvec, self._last_tvec = rvec.copy(), tvec.copy()
+        self.last_inlier_indices = (best_idx,)
+        self.last_ignored_ids = tuple(
+            t for i, t in enumerate(ids) if i != best_idx)
+        return PenPose(pos=tvec.reshape(3).copy(),
+                       quat=quat_from_matrix(rotation),
+                       rvec=rvec.reshape(3).copy(),
+                       tvec=tvec.reshape(3).copy(),
+                       tag_ids=(best_tid,), reproj_px=err,
+                       coplanar=True, ambiguous=False)
+
     def estimate(self, gray: np.ndarray, roi=None) -> PenPose | None:
         """Choose a reprojection-consistent, physically visible rigid-body pose."""
         self.last_rejection = ""
@@ -398,12 +464,15 @@ class PenPoseEstimator:
         # PnP, so the preview can reuse them directly.
         self.last_detection = (ids, quads)
         if len(ids) < self.min_tags:
+            if ids:
+                fallback = self._single_tag_continuity_solve(ids, quads)
+                if fallback is not None:
+                    return fallback
             self.last_rejection = "not enough tags"
             self._missed += 1
             if self._missed > 12:
                 self.reset()
             return None
-        self._missed = 0
         inlier_indices = tuple(range(len(ids)))
         visible, failures, coplanar = self._fit(ids, quads)
         if not visible or visible[0][0] > self.max_reproj_px:
@@ -413,16 +482,22 @@ class PenPoseEstimator:
                 inlier_indices = indices
                 self.last_ignored_ids = tuple(t for i, t in enumerate(ids) if i not in indices)
                 ids = [ids[i] for i in indices]
-        if not visible:
-            self.last_rejection = failures[0] if failures else "PnP failed"
-            self.reset()
+        if not visible or visible[0][0] > self.max_reproj_px:
+            fallback = self._single_tag_continuity_solve(ids, quads)
+            if fallback is not None:
+                return fallback
+            if not visible:
+                self.last_rejection = failures[0] if failures else "PnP failed"
+            else:
+                self.rejected_reproj += 1
+                self.last_rejection = f"reprojection {visible[0][0]:.1f}px"
+            self._missed += 1
+            if self._missed > 12:
+                self.reset()
             return None
         best = visible[0]
-        if best[0] > self.max_reproj_px:
-            self.rejected_reproj += 1
-            self.last_rejection = f"reprojection {best[0]:.1f}px"
-            self.reset()
-            return None
+        self._missed = 0
+        self._single_tag_streak = 0
 
         # A subpixel residual difference can be corner noise. Among similarly
         # good visible hypotheses use the last rotation as a tie-break, never
@@ -455,3 +530,4 @@ class PenPoseEstimator:
         self._last_rvec = self._last_tvec = None
         self._last_inlier_ids = ()
         self._missed = 0
+        self._single_tag_streak = 0

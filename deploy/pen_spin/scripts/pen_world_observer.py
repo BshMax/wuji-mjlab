@@ -386,6 +386,8 @@ def main() -> int:
                        "(0 disables; default 30)")
   ap.add_argument("--video", help="path/device for --source video")
   ap.add_argument("--port", type=int, default=PEN_PORT)
+  ap.add_argument("--video-pub-port", type=int, default=5567,
+                  help="ZMQ PUB port streaming 30Hz JPEG camera frames for side-by-side recording (0 disables)")
   ap.add_argument("--rate-hz", type=float, default=90.0)
   ap.add_argument("--preview", action="store_true")
   ap.add_argument("--detect-only", action="store_true",
@@ -400,6 +402,12 @@ def main() -> int:
                   help="stereo reference: pen=108 codes, wrist=12 ID0 tags, unknown=no miss denominator")
   ap.add_argument("--exposure-us", type=float,
                   help="Camera exposure time in microseconds for this run only; defaults to the source camera YAML")
+  ap.add_argument("--gain", type=float,
+                  help="Camera analog gain for this run only; defaults to the source camera YAML")
+  ap.add_argument("--preview-hz", type=float, default=30.0,
+                  help="Max preview window redraw rate in Hz (0 redraws every frame; default 30 so preview does not bottleneck detection)")
+  ap.add_argument("--no-single-tag-fallback", action="store_true",
+                  help="Disable guarded single-tag continuity fallback during brief finger occlusions")
   ap.add_argument("--tag-layout", help="pen tag JSON; default: config/pen_tags.json (1x2, 250 mm)")
   ap.add_argument("--min-faces", type=int, default=1,
                   help="refuse poses spanning fewer cube faces than this "
@@ -425,6 +433,10 @@ def main() -> int:
       ap.error("--detect-hz requires --detect-only")
   if args.exposure_us is not None and (not np.isfinite(args.exposure_us) or args.exposure_us <= 0):
     ap.error("--exposure-us must be finite and positive")
+  if args.gain is not None and (not np.isfinite(args.gain) or args.gain < 0):
+    ap.error("--gain must be finite and nonnegative")
+  if not np.isfinite(args.preview_hz) or args.preview_hz < 0:
+    ap.error("--preview-hz must be finite and nonnegative")
   if args.world_frames < 1:
     ap.error("--world-frames must be positive")
   if args.segment_seconds < 0 or not np.isfinite(args.segment_seconds):
@@ -438,6 +450,8 @@ def main() -> int:
   cfg = load_camera_config(config_file)
   if args.exposure_us is not None:
     cfg['capture']['exposure_time'] = args.exposure_us
+  if args.gain is not None:
+    cfg['capture']['gain'] = args.gain
   if args.camera_serial and args.source != "realsense":
     ap.error("--camera-serial requires --source realsense")
   recorder = (SegmentRecorder(args.record_dir, limit_s=args.segment_seconds)
@@ -462,6 +476,7 @@ def main() -> int:
 
 def _run_observer(args, cfg, config_file, camera=None, diagnostics=None, recorder=None):
   import cv2
+  cv2.setNumThreads(int(os.environ.get("OPENCV_NUM_THREADS", "4")))
   from lib.detection_roi import RoiSelector, frame_roi, save_selection
   from lib.pen_pose import PenPoseEstimator, PenTagLayout
   if getattr(args, "palm_frame", "z5") == "z5":
@@ -488,7 +503,10 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None, recorde
 
   K, dist = ((camera.K, camera.dist) if camera is not None
              else (get_camera_matrix(cfg), get_dist_coeffs(cfg)))
-  est = PenPoseEstimator(K, dist, layout=PenTagLayout(args.tag_layout), min_tags=2)
+  est = PenPoseEstimator(
+      K, dist, layout=PenTagLayout(args.tag_layout), min_tags=2,
+      single_tag_fallback=not getattr(args, "no_single_tag_fallback", False))
+  est.batch_border_check = True
   if args.detect_only:
     if getattr(args, 'stereo', False):
       from lib.stereo_tag_preview import run_stereo_preview
@@ -500,17 +518,30 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None, recorde
   world = WorldFrame(args.world_frames)
   selector = RoiSelector()
   preview_initialized = False
+  next_preview_t = 0.0
+  preview_hz = float(getattr(args, "preview_hz", 30.0))
+  preview_period = (1.0 / preview_hz) if preview_hz > 0 else 0.0
 
   ctx = zmq.Context.instance()
   pub = ctx.socket(zmq.PUB)
   pub.bind(f"tcp://*:{args.port}")
+  video_pub = None
+  next_video_pub = 0.0
+  video_pub_port = int(getattr(args, "video_pub_port", 5567) or 0)
+  if video_pub_port > 0:
+    video_pub = ctx.socket(zmq.PUB)
+    video_pub.setsockopt(zmq.SNDHWM, 2)
+    video_pub.setsockopt(zmq.LINGER, 0)
+    video_pub.bind(f"tcp://*:{video_pub_port}")
+    print(f"[pen observer] streaming 30Hz JPEG video on :{video_pub_port}")
   print(f"[pen observer] source={args.source} publishing on :{args.port}")
   print(f"[pen observer] {len(est.layout)} tags, {est.layout.dictionary_name}, "
         f"inverted={est.layout.inverted}, size={est.layout.tag_size * 1000:.2f} mm")
   print(f"[pen observer] pen length={est.layout.total_length * 1000:.1f} mm, "
         f"exposed shaft={est.layout.shaft_half_length * 2000:.1f} mm")
-  print("[pen observer] raw PnP; every solved frame is published as measured, "
-        "nothing is smoothed, gated or held")
+  print(f"[pen observer] raw PnP; single-tag continuity fallback="
+        f"{'ON' if est.single_tag_fallback else 'OFF'}; "
+        f"preview_hz={'full' if preview_hz <= 0 else f'{preview_hz:g}'}")
   print("[pen observer] visibility checks enabled; planar candidates use continuity only for similar pixel errors")
   if recorder is not None:
     print(f"[recorder] segments -> {recorder.run_dir} "
@@ -540,6 +571,7 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None, recorde
     previous_frame_end = time.perf_counter()
     for gray, _truth in frames:
       frame_start = time.perf_counter()
+      acq_wall_s = time.time()
       # The first frame includes camera initialization; exclude it from steady-state timing.
       if total_n:
         phase_ms['grab'] += (frame_start - previous_frame_end) * 1000.
@@ -579,7 +611,7 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None, recorde
       # ages it.
       pos = quat = None
       if pose is None:
-        _publish(pub, None, frame_fixed)
+        _publish(pub, None, frame_fixed, cal_pos=cal_pos, timestamp=acq_wall_s)
       else:
         # Cache camera-frame PnP directly. Preview and publisher use the same
         # sample, with only the existing wrist-frame transform on the wire.
@@ -588,7 +620,7 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None, recorde
         else:
           R, pos = world.to_world(matrix_from_quat(pose.quat), pose.pos)
           quat = quat_from_matrix(R)
-        _publish(pub, (pos, quat), frame_fixed)
+        _publish(pub, (pos, quat), frame_fixed, cal_pos=cal_pos, timestamp=acq_wall_s)
 
       preview_start = time.perf_counter()
       phase_ms['output'] += (preview_start - solve_end) * 1000.
@@ -629,7 +661,18 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None, recorde
       span = frame_now - frame_times[0]
       observer_fps = (len(frame_times) - 1) / span if span > 0 else None
 
-      if args.preview:
+      need_video = video_pub is not None and frame_now >= next_video_pub
+      need_preview = (
+          args.preview and (
+              not preview_initialized
+              or selector.editing
+              or not frame_fixed
+              or preview_period <= 0.0
+              or frame_now >= next_preview_t
+              or need_video))
+      vis = None
+      if need_preview:
+        next_preview_t = frame_now + preview_period
         vis = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
         if not args.no_world_tag:
           if world.fixed:
@@ -656,9 +699,12 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None, recorde
                      axis_radius_m=args.axis_points_mm * 1e-3)
           faces = sorted({est.layout.face_normal[t] for t in pose.tag_ids})
           d_mm = float(np.linalg.norm(pose.pos)) * 1000.0
+          tag_suffix = ('  1-TAG' if pose.num_tags == 1
+                        else '  PLANAR AMBIGUOUS' if pose.ambiguous
+                        else '  COPLANAR' if pose.coplanar else '')
           cv2.putText(vis, f"{pose.num_tags} tags / {len(faces)} faces {faces}  "
                            f"reproj {pose.reproj_px:.2f}px  {d_mm:.0f}mm"
-                           f"{'  PLANAR AMBIGUOUS' if pose.ambiguous else '  COPLANAR' if pose.coplanar else ''}",
+                           f"{tag_suffix}",
                       (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
                       (0, 165, 255) if pose.coplanar else (0, 255, 0), 2)
           if pos is not None and not args.no_world_tag:
@@ -707,7 +753,8 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None, recorde
           cv2.putText(vis, badge, (bx, by + 25), cv2.FONT_HERSHEY_SIMPLEX,
                       0.7, (0, 0, 255), 2)
         if args.source == 'camera':
-          stats += f" | Exposure set: {cfg['capture']['exposure_time']/1000.:g} ms"
+          stats += (f" | Exp: {cfg['capture']['exposure_time']/1000.:g} ms"
+                    f" | Gain: {cfg['capture']['gain']:g}")
         if camera is not None:
           cv2.putText(vis, camera.status(), (10, vis.shape[0]-86),
                       cv2.FONT_HERSHEY_SIMPLEX, .45, (255, 255, 255), 1)
@@ -773,12 +820,30 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None, recorde
           except (OSError, ValueError) as exc:
             print(f"[pen observer] ROI not changed: {exc}")
 
+      if need_video:
+        next_video_pub = frame_now + (1.0 / 30.0)
+        src_bgr = vis if vis is not None else cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+        h0, w0 = src_bgr.shape[:2]
+        scale = min(640.0 / w0, 480.0 / h0)
+        rw, rh = max(2, int(round(w0 * scale))), max(2, int(round(h0 * scale)))
+        resized = cv2.resize(src_bgr, (rw, rh), interpolation=cv2.INTER_AREA)
+        canvas = np.zeros((480, 640, 3), dtype=np.uint8)
+        y0, x0 = (480 - rh) // 2, (640 - rw) // 2
+        canvas[y0:y0 + rh, x0:x0 + rw] = resized
+        ok_enc, buf = cv2.imencode(".jpg", canvas, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+        if ok_enc:
+          try:
+            video_pub.send_multipart([f"{time.time():.6f}".encode("ascii"), buf.tobytes()], flags=zmq.NOBLOCK)
+          except zmq.Again:
+            pass
+
       phase_ms['preview'] += (time.perf_counter() - preview_start) * 1000.
       now = time.monotonic()
       if now - t_report >= 2.0:
         print(f"[pen observer] {n} frames, {ok_n} poses "
               f"({n / (now - t_report):.1f} FPS), "
               f"({100.0 * ok_n / max(1, n):.0f}%), "
+              f"1tag={getattr(est, 'single_tag_solves', 0)}, "
               f"reproj-rejects={est.rejected_reproj}, "
               f"visibility-rejects={getattr(est, 'rejected_visibility', 0)}, "
               f"appearance-rejects={getattr(est, 'rejected_appearance', 0)}, "
@@ -809,6 +874,7 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None, recorde
     # before the 2 s report tick, and exiting in silence tells the operator
     # nothing about whether anything was ever detected.
     print(f"[pen observer] final: {total_n} frames, {total_ok} poses, "
+          f"1tag={getattr(est, 'single_tag_solves', 0)}, "
           f"contour-fallbacks={getattr(est, 'contour_fallbacks', 0)}, "
           f"reproj-rejects={est.rejected_reproj}, "
           f"visibility-rejects={getattr(est, 'rejected_visibility', 0)}, "
@@ -823,6 +889,8 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None, recorde
     if hasattr(frames, "close"):
       frames.close()
     pub.close(linger=0)
+    if video_pub is not None:
+      video_pub.close(linger=0)
     if args.preview:
       cv2.destroyAllWindows()
   return 0
@@ -923,7 +991,7 @@ class SegmentRecorder:
     print(f"[recorder] run directory: {self.run_dir}", flush=True)
 
 
-def _publish(pub, pose, world_fixed: bool) -> None:
+def _publish(pub, pose, world_fixed: bool, cal_pos=None, timestamp=None) -> None:
   """Wire schema — identical to what lib/zmq_bridge.PenReceiver parses."""
   if pose is None:
     msg = {"world_fixed": bool(world_fixed)}
@@ -935,6 +1003,10 @@ def _publish(pub, pose, world_fixed: bool) -> None:
                    # scipy xyzw on the wire; zmq_bridge converts to wxyz
                    "orientation": {"x": float(q[1]), "y": float(q[2]),
                                    "z": float(q[3]), "w": float(q[0])}}}
+  if timestamp is not None:
+    msg["timestamp"] = float(timestamp)
+  if cal_pos is not None:
+    msg["tag_in_palm_pos"] = [float(cal_pos[0]), float(cal_pos[1]), float(cal_pos[2])]
   try:
     pub.send_string(json.dumps(msg), flags=zmq.NOBLOCK)
   except zmq.Again:

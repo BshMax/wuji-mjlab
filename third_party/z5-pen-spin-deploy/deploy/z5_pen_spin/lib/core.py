@@ -8,6 +8,13 @@ from pathlib import Path
 import numpy as np
 
 
+def validate_lookahead(steps):
+    steps = tuple(steps)
+    if any(isinstance(v, bool) or not isinstance(v, int) or v <= 0 for v in steps) or list(steps) != sorted(set(steps)):
+        raise ValueError("lookahead_steps must be strictly increasing positive integers")
+    return steps
+
+
 def finite_vector(value, size, name):
     value = np.asarray(value, dtype=np.float32)
     if value.shape != (size,) or not np.isfinite(value).all():
@@ -43,11 +50,14 @@ class Bundle:
         self.directory = Path(directory).resolve()
         self.config = json.loads((self.directory / "policy_config.json").read_text())
         c = self.config
-        if c["schema"] != "dex_supermimic_z5_pen_spin:1" or c["task"] != "z5-pen-spin":
+        if c["schema"] not in ("dex_supermimic_z5_pen_spin:1", "dex_supermimic_z5_pen_spin:2") or c["task"] != "z5-pen-spin":
             raise ValueError("unsupported deployment bundle")
         self.joint_names = tuple(c["joint_names"])
-        if len(self.joint_names) != 22 or len(set(self.joint_names)) != 22 or c["observation_dim"] != 163:
-            raise ValueError("bundle must describe the 163-input, 22-action Z5 policy")
+        self.lookahead_steps = validate_lookahead(c.get("lookahead_steps", ()))
+        self.command_dim = 91 + 28 * len(self.lookahead_steps)
+        self.observation_dim = self.command_dim + 72
+        if len(self.joint_names) != 22 or len(set(self.joint_names)) != 22 or c["observation_dim"] != self.observation_dim:
+            raise ValueError("bundle observation dimension does not match its Z5 reference layout")
         self.dt = float(c["control_dt"])
         if not np.isclose(self.dt, 0.02):
             raise ValueError("Z5 pen-spin requires 50 Hz")
@@ -76,7 +86,22 @@ class Bundle:
             raise ValueError(f"unknown clip {clip!r}; available: {', '.join(self.clip_ids)}")
         return self.clip_ids.index(clip)
 
-    def observation(self, frame, q, dq, pen_pose, last_action):
+    def reference_command(self, frame, *, reference_frame=None):
+        """Use the unclamped reference clock for previews, including first-frame holds."""
+        if not 0 <= frame < self.ends[-1]:
+            raise ValueError("reference frame outside the exported trajectories")
+        command = self.references["command"][frame]
+        if not self.lookahead_steps:
+            return command
+        clip = int(np.searchsorted(self.ends, frame, side="right"))
+        first, end = int(self.starts[clip]), int(self.ends[clip])
+        clock = frame if reference_frame is None else reference_frame
+        if np.clip(clock, first, end - 1) != frame:
+            raise ValueError("reference clock and current frame disagree")
+        indices = np.clip(clock + np.asarray(self.lookahead_steps), first, end - 1)
+        return np.concatenate((command, self.references["command"][indices, :28].reshape(-1)))
+
+    def observation(self, frame, q, dq, pen_pose, last_action, *, reference_frame=None):
         c = self.config
         q = finite_vector(q, 22, "joint positions")
         dq = finite_vector(dq, 22, "joint velocities")
@@ -84,7 +109,7 @@ class Bundle:
         points = bounded_points(pen_pose, c["axis_point_radius_m"], c["object_position_tanh_scale_m"])
         return np.concatenate(
             (
-                self.references["command"][frame],
+                self.reference_command(frame, reference_frame=reference_frame),
                 q - c["default_joint_pos"],
                 (dq - c["default_joint_vel"]) * c["joint_velocity_scale"],
                 points,
@@ -118,13 +143,17 @@ class ResidualController:
 class Policy:
     def __init__(self, bundle, engine="torchscript"):
         self.engine = engine
+        self.observation_dim = bundle.observation_dim
         if engine == "torchscript":
             import torch
 
             torch.set_num_threads(1)
             self.torch = torch
-            self.model = torch.jit.load(str(bundle.directory / "policy.ts"), map_location="cpu").eval()
-            self(np.zeros(163, dtype=np.float32))
+            ts_path = bundle.directory / "policy.ts"
+            if not ts_path.exists():
+                ts_path = bundle.directory / "policy.pt"
+            self.model = torch.jit.load(str(ts_path), map_location="cpu").eval()
+            self(np.zeros(self.observation_dim, dtype=np.float32))
         elif engine == "onnx":
             import onnxruntime as ort
 
@@ -137,7 +166,7 @@ class Policy:
             raise ValueError(f"unknown inference engine: {engine}")
 
     def __call__(self, observation):
-        observation = finite_vector(observation, 163, "observation")
+        observation = finite_vector(observation, self.observation_dim, "observation")
         if self.engine == "torchscript":
             with self.torch.inference_mode():
                 action = self.model(self.torch.from_numpy(observation[None])).numpy()[0]

@@ -7,10 +7,10 @@ roi:
   width: 1280
   height: 1024
 fast_roi:
-  offset_x: 8
-  offset_y: 8
-  width: 1272
-  height: 1016
+  offset_x: 104
+  offset_y: 32
+  width: 1040
+  height: 936
 intrinsics:
   fx: 1681.191194844395
   fy: 1680.509427793056

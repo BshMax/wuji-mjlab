@@ -49,8 +49,16 @@ Z5_ROOT_IN_PALM_QUAT = quat_inv(Z5_PALM_IN_ROOT_QUAT)
 #
 # Ruler check on the worn rig: tag centre -> wrist end-face distance along
 # the arm ~54 mm, height above the flange centre ~25 mm, |d| ~59 mm.
-Z5_TAG_IN_PALM_POS = np.array([0.00163, -0.0537, 0.0250])
-Z5_TAG_IN_PALM_QUAT = np.array([0.7071067811865476, 0.0, 0.0, -0.7071067811865476])
+# CAD nominal (before 2026-11-24 2-point MCP+fingertip physical calibration):
+#   Z5_TAG_IN_PALM_POS  = np.array([0.00163, -0.0537, 0.0250])
+#   Z5_TAG_IN_PALM_QUAT = np.array([0.7071067811865476, 0.0, 0.0, -0.7071067811865476])
+#
+# Physically calibrated on the real Z5 rig (2026-11-25): merges the static bridge
+# offset (+7.8, -6.4, -2.1 mm), palm/MCP touch fit (+0.0, +9.0, -1.0 mm), and
+# +2.5 deg pitch around palm +X (+3.2 mm fingertip lift, zero float/penetration)
+# while keeping the MCP contact point invariant. Run z5_pose_bridge WITHOUT --pos-offset-mm.
+Z5_TAG_IN_PALM_POS = np.array([0.00943, -0.05093, 0.01599])
+Z5_TAG_IN_PALM_QUAT = np.array([0.70693851, 0.01542545, 0.01542545, -0.70693851])
 
 # Previous estimate derived from the hand2 jig CAD (before the real mount STEP
 # arrived), kept for comparison: tag normal +Z_palm, |d| = 51 mm.

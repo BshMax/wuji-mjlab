@@ -16,16 +16,42 @@ WIRE_NAMES = tuple(
     for joint in (("pitch",) if finger == "little" else ()) + ("roll1", "yaw", "roll2", "roll3")
 ) + tuple(f"right_thumb_{joint}_joint" for joint in ("pitch", "roll", "yaw1", "yaw2", "yaw3"))
 REVERSED_JOINTS = {"right_thumb_pitch_joint", "right_little_finger_pitch_joint", "right_little_finger_roll1_joint"}
+THUMB_PROXIMAL_JOINTS = {
+    "right_thumb_pitch_joint",
+    "right_thumb_roll_joint",
+    "right_thumb_yaw1_joint",
+}
+LARGE_MOTOR_JOINTS = {
+    "right_thumb_pitch_joint",
+    "right_thumb_roll_joint",
+    "right_thumb_yaw1_joint",
+    "right_index_finger_roll1_joint",
+    "right_middle_finger_roll1_joint",
+    "right_ring_finger_roll1_joint",
+    "right_little_finger_roll1_joint",
+}
 
 
-def wire_mapping(joint_names, convention):
+JOINT_SPACES = ("z5_mjcf", "dex5s_urdf")
+
+
+def wire_mapping(joint_names, convention, joint_space="z5_mjcf"):
+    """Map policy joints to DDS motors.
+
+    ``z5_mjcf`` policies use the old Z5 MJCF direction, so ``urdf20261103`` reverses 3 joints.
+    ``dex5s_urdf`` policies are trained on the native Dex5s asset whose joint directions already
+    match ``urdf20261103`` (identity +1), while ``legacy`` reverses those 3 joints.
+    """
     if len(joint_names) != 22 or set(joint_names) != set(WIRE_NAMES):
         raise ValueError("policy/DDS joint names do not match")
     if convention not in ("legacy", "urdf20261103"):
         raise ValueError("wire convention must be legacy or urdf20261103")
+    if joint_space not in JOINT_SPACES:
+        raise ValueError(f"unknown policy joint space {joint_space!r}")
+    reverse = (convention == "urdf20261103") == (joint_space == "z5_mjcf")
     indices = np.array([WIRE_NAMES.index(name) for name in joint_names])
     signs = np.array(
-        [-1.0 if convention == "urdf20261103" and name in REVERSED_JOINTS else 1.0 for name in joint_names],
+        [-1.0 if reverse and name in REVERSED_JOINTS else 1.0 for name in joint_names],
         dtype=np.float32,
     )
     return indices, signs
@@ -74,18 +100,55 @@ class Z5HandDriver:
         sdk_path=None,
         kp=None,
         kd=None,
-        state_timeout=0.2,
+        large_kp=None,
+        large_kd=None,
+        thumb_kp=None,
+        thumb_kd=None,
+        state_timeout=0.35,
         startup_timeout=5.0,
         temperature_limit=65.0,
     ):
-        self.indices, self.signs = wire_mapping(bundle.joint_names, convention)
+        self.joint_space = bundle.config.get("joint_space", "z5_mjcf")
+        self.convention = convention
+        self.indices, self.signs = wire_mapping(bundle.joint_names, convention, self.joint_space)
         self.kp = float(bundle.config["nominal_kp"] if kp is None else kp)
         self.kd = float(bundle.config["nominal_kd"] if kd is None else kd)
-        if not all(np.isfinite(v) and v >= 0 for v in (self.kp, self.kd)):
+        self.large_kp = float(self.kp if large_kp is None else large_kp)
+        self.large_kd = float(self.kd if large_kd is None else large_kd)
+        self.thumb_kp = float(self.large_kp if thumb_kp is None else thumb_kp)
+        self.thumb_kd = float(self.large_kd if thumb_kd is None else thumb_kd)
+        if not all(
+            np.isfinite(v) and v >= 0
+            for v in (self.kp, self.kd, self.large_kp, self.large_kd, self.thumb_kp, self.thumb_kd)
+        ):
             raise ValueError("DDS gains must be finite and nonnegative")
+        kp_policy = np.array(
+            [
+                self.thumb_kp
+                if n in THUMB_PROXIMAL_JOINTS
+                else (self.large_kp if n in LARGE_MOTOR_JOINTS else self.kp)
+                for n in bundle.joint_names
+            ],
+            dtype=np.float32,
+        )
+        kd_policy = np.array(
+            [
+                self.thumb_kd
+                if n in THUMB_PROXIMAL_JOINTS
+                else (self.large_kd if n in LARGE_MOTOR_JOINTS else self.kd)
+                for n in bundle.joint_names
+            ],
+            dtype=np.float32,
+        )
+        self.kp_wire = np.empty(22, dtype=np.float32)
+        self.kd_wire = np.empty(22, dtype=np.float32)
+        self.kp_wire[self.indices] = kp_policy
+        self.kd_wire[self.indices] = kd_policy
         self.timeout, self.temperature_limit = state_timeout, temperature_limit
         self.condition = threading.Condition()
         self.state = None
+        self.motor_state_bits = None
+        self.tau_est = None
         self.stamp = -np.inf
         self.error = None
         self.publisher = self.subscriber = self.message = None
@@ -116,8 +179,14 @@ class Z5HandDriver:
                         warned = True
                     self.condition.wait(min(remaining, 1.0))
             self.read()
-            print(f"Z5HandDriver ready: 22 motors, kp={self.kp}, kd={self.kd} per MotorCmd_ each tick",
-                  file=sys.stderr, flush=True)
+            reversed_cnt = int(np.sum(self.signs < 0))
+            print(
+                f"Z5HandDriver ready: 22 motors, joint_space={self.joint_space}, wire={self.convention} "
+                f"(reversed={reversed_cnt}), kp={self.kp}/large={self.large_kp}/thumb={self.thumb_kp}, "
+                f"kd={self.kd}/large={self.large_kd}/thumb={self.thumb_kd} per MotorCmd_ each tick",
+                file=sys.stderr,
+                flush=True,
+            )
         except BaseException:
             self.close()
             raise
@@ -132,8 +201,12 @@ class Z5HandDriver:
                 raise ValueError("invalid DDS motor temperatures")
             if np.any(temperature > self.temperature_limit):
                 raise RuntimeError("Z5 motor temperature limit exceeded")
+            ms_bits = np.asarray([int(getattr(v, "motorstate", 0)) for v in motors], dtype=np.uint32)
+            tau_raw = np.asarray([float(getattr(v, "tau_est", 0.0)) for v in motors], dtype=np.float32)
             with self.condition:
                 self.state = q[self.indices] * self.signs, dq[self.indices] * self.signs
+                self.motor_state_bits = ms_bits[self.indices]
+                self.tau_est = tau_raw[self.indices] * self.signs
                 self.stamp = time.monotonic()
                 self.condition.notify_all()
         except (AttributeError, TypeError, ValueError, RuntimeError) as exc:
@@ -149,15 +222,21 @@ class Z5HandDriver:
                 raise TimeoutError("Z5 joint feedback is stale")
             return tuple(v.copy() for v in self.state)
 
+    def diagnostics(self):
+        with self.condition:
+            bits = None if self.motor_state_bits is None else self.motor_state_bits.copy()
+            tau = None if self.tau_est is None else self.tau_est.copy()
+            return bits, tau
+
     def send(self, target):
         self.read()
         target = finite_vector(target, 22, "DDS target")
         wire = np.empty(22, dtype=np.float32)
         wire[self.indices] = target * self.signs
-        for command, q in zip(self.message.motor_cmd, wire, strict=True):
+        for command, q, kp_i, kd_i in zip(self.message.motor_cmd, wire, self.kp_wire, self.kd_wire, strict=True):
             command.mode, command.q = 1, float(q)
             command.dq = command.tau = 0.0
-            command.kp, command.kd = self.kp, self.kd
+            command.kp, command.kd = float(kp_i), float(kd_i)
         self.publisher.Write(self.message)
 
     def close(self):
