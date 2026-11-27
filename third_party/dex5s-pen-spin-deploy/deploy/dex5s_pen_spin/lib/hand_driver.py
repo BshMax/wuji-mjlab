@@ -39,7 +39,7 @@ def wire_mapping(joint_names, convention, joint_space="dex5s_mjcf"):
     """Map policy joints to DDS motors.
 
     ``dex5s_mjcf`` policies use the old Dex5S MJCF direction, so ``urdf20261103`` reverses 3 joints.
-    ``dex5s_urdf`` policies are trained on the native Dex5s asset whose joint directions already
+    ``dex5s_urdf`` policies are trained on the native Dex5S asset whose joint directions already
     match ``urdf20261103`` (identity +1), while ``legacy`` reverses those 3 joints.
     """
     if len(joint_names) != 22 or set(joint_names) != set(WIRE_NAMES):
