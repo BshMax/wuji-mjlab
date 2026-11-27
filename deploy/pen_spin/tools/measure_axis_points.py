@@ -11,7 +11,7 @@ Frames:
   tag   (default)  wrist AprilTag frame — verifies intrinsics + tag size + PnP.
                    Measure from the printed tag's centre along its drawn axes.
   hand2            Wuji Hand 2 right_palm_link frame (TAG_IN_PALM_* constants).
-  z5               Unitree Z5 palm_link frame (Z5_TAG_IN_PALM_* constants —
+  dex5s               Unitree Dex5S palm_link frame (DEX5S_TAG_IN_PALM_* constants —
                    placeholder until the tag mount is measured on the rig).
 
 Sources: a recorded diagnostics JSONL, or the live observer stream.
@@ -37,8 +37,8 @@ def _lifts():
     from lib.tag_frame import pen_in_palm
     LIFT["hand2"] = pen_in_palm
     try:
-        from lib.z5_tag_frame import pen_in_z5_palm
-        LIFT["z5"] = pen_in_z5_palm
+        from lib.dex5s_tag_frame import pen_in_dex5s_palm
+        LIFT["dex5s"] = pen_in_dex5s_palm
     except ImportError:
         pass
     return LIFT
@@ -132,7 +132,7 @@ def main():
     ap.add_argument("jsonl", nargs="?", type=Path, help="recorded diagnostics JSONL")
     ap.add_argument("--port", type=int, help="live ZMQ port instead of a file")
     ap.add_argument("--host", default="localhost")
-    ap.add_argument("--frame", choices=["tag", "hand2", "z5"], default="tag")
+    ap.add_argument("--frame", choices=["tag", "hand2", "dex5s"], default="tag")
     ap.add_argument("--radius-mm", type=float, default=100.0,
                     help="axis point radius; training uses 100 mm")
     ap.add_argument("--window-s", type=float, default=2.0,
@@ -145,10 +145,10 @@ def main():
         _lifts()
         if args.frame not in LIFT:
             ap.error(f"{args.frame} lift unavailable — check lib imports")
-        if args.frame == "z5":
-            print("NOTE: z5 constants were derived from the shared jig CAD — "
-                  "verify once with a ruler (see Z5_TAG_IN_PALM_* comments in "
-                  "lib/z5_tag_frame.py).", flush=True)
+        if args.frame == "dex5s":
+            print("NOTE: dex5s constants were derived from the shared jig CAD — "
+                  "verify once with a ruler (see DEX5S_TAG_IN_PALM_* comments in "
+                  "lib/dex5s_tag_frame.py).", flush=True)
     if args.jsonl is not None:
         from_jsonl(args.jsonl, args.frame, radius_m)
     elif args.port:

@@ -376,7 +376,7 @@ def main() -> int:
                        "auto-runs summarize+plot per segment on exit "
                        "(preview keys: 1=static 2=dynamic, press again to stop, "
                        "0=unmarked)")
-  ap.add_argument("--palm-frame", choices=["z5", "hand2"], default="z5",
+  ap.add_argument("--palm-frame", choices=["dex5s", "hand2"], default="dex5s",
                   help="palm frame shown in the preview readout panel")
   ap.add_argument("--axis-points-mm", type=float, default=100.0,
                   help="draw the policy's ±N mm shaft axis points on the "
@@ -479,11 +479,11 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None, recorde
   cv2.setNumThreads(int(os.environ.get("OPENCV_NUM_THREADS", "4")))
   from lib.detection_roi import RoiSelector, frame_roi, save_selection
   from lib.pen_pose import PenPoseEstimator, PenTagLayout
-  if getattr(args, "palm_frame", "z5") == "z5":
-    from lib.z5_tag_frame import (pen_in_z5_palm as _palm_lift,
-                                  Z5_TAG_IN_PALM_POS as _PALM_TAG_POS,
-                                  Z5_TAG_IN_PALM_QUAT as _PALM_TAG_QUAT)
-    _palm_label = "z5 palm_link"
+  if getattr(args, "palm_frame", "dex5s") == "dex5s":
+    from lib.dex5s_tag_frame import (pen_in_dex5s_palm as _palm_lift,
+                                  DEX5S_TAG_IN_PALM_POS as _PALM_TAG_POS,
+                                  DEX5S_TAG_IN_PALM_QUAT as _PALM_TAG_QUAT)
+    _palm_label = "dex5s palm_link"
   else:
     from lib.tag_frame import (pen_in_palm as _palm_lift,
                                TAG_IN_PALM_POS as _PALM_TAG_POS,
@@ -712,7 +712,7 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None, recorde
             r_ = args.axis_points_mm * 1e-3
             axis = matrix_from_quat(pq)[:, 2] * r_
             _draw_palm_readout(
-                vis, f"{getattr(args, 'palm_frame', 'z5')} palm_link  xyz mm / |d| mm",
+                vis, f"{getattr(args, 'palm_frame', 'dex5s')} palm_link  xyz mm / |d| mm",
                 [(f"+{r_*1e3:.0f}mm", pp + axis, (255, 255, 0)),
                  ("origin", pp, (255, 255, 255)),
                  (f"-{r_*1e3:.0f}mm", pp - axis, (0, 255, 255))], cv2)
@@ -800,8 +800,8 @@ def _run_observer(args, cfg, config_file, camera=None, diagnostics=None, recorde
           cal_pos[:] = _PALM_TAG_POS
           print(f"[palm cal] reset to default {np.round(cal_pos, 5)}")
         if k == ord("p"):
-          print(f"[palm cal] Z5_TAG_IN_PALM_POS = np.array({cal_pos.tolist()})")
-          print(f"[palm cal] Z5_TAG_IN_PALM_QUAT = np.array({cal_quat.tolist()})")
+          print(f"[palm cal] DEX5S_TAG_IN_PALM_POS = np.array({cal_pos.tolist()})")
+          print(f"[palm cal] DEX5S_TAG_IN_PALM_QUAT = np.array({cal_quat.tolist()})")
         if k in (ord("c"), 27):
           selector.cancel()
         selection = None

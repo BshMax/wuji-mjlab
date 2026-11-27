@@ -1,14 +1,14 @@
-"""Live RealSense RGB framing & AprilTag alignment preview for Z5 pen-spin recording.
+"""Live RealSense RGB framing & AprilTag alignment preview for Dex5S pen-spin recording.
 
 Uses Tkinter + PIL (works even when opencv-python-headless is installed).
 Shows the live 1280x720 RGB feed, AprilTag id=0 detection status (required for
-automatic pixel-exact MuJoCo viewpoint alignment in z5_mirror.py --realsense),
+automatic pixel-exact MuJoCo viewpoint alignment in dex5s_mirror.py --realsense),
 and the exact 4:3 crop box corresponding to --realsense-zoom.
 
 Keys:
   + / = : zoom in (+0.1)
   -     : zoom out (-0.1, down to 1.0 = full frame)
-  q/ESC : quit and release the camera before launching z5_mirror.py --realsense
+  q/ESC : quit and release the camera before launching dex5s_mirror.py --realsense
 """
 
 from __future__ import annotations
@@ -27,13 +27,13 @@ def _load_tag_constants():
     ns: dict = {"np": np}
     for rel, prefixes in (
         ("lib/tag_frame.py", ("WORLD_TAG_ID =", "WORLD_TAG_SIZE_M =", "WRIST_AXES_IN_OPENCV_TAG =")),
-        ("lib/z5_tag_frame.py", ("Z5_TAG_IN_PALM_POS =", "Z5_TAG_IN_PALM_QUAT =")),
+        ("lib/dex5s_tag_frame.py", ("DEX5S_TAG_IN_PALM_POS =", "DEX5S_TAG_IN_PALM_QUAT =")),
     ):
         for line in (pen_spin_root / rel).read_text().splitlines():
             s = line.strip()
             if any(s.startswith(pfx) for pfx in prefixes):
                 exec(s, ns)
-    w, x, y, z = [float(v) for v in ns["Z5_TAG_IN_PALM_QUAT"]]
+    w, x, y, z = [float(v) for v in ns["DEX5S_TAG_IN_PALM_QUAT"]]
     R_palm_tag = np.array([
         [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
         [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
@@ -43,14 +43,14 @@ def _load_tag_constants():
         int(ns["WORLD_TAG_ID"]),
         float(ns["WORLD_TAG_SIZE_M"]),
         np.asarray(ns["WRIST_AXES_IN_OPENCV_TAG"], dtype=np.float64),
-        np.asarray(ns["Z5_TAG_IN_PALM_POS"], dtype=np.float64),
+        np.asarray(ns["DEX5S_TAG_IN_PALM_POS"], dtype=np.float64),
         R_palm_tag,
     )
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--zoom", type=float, default=1.5, help="initial crop zoom (matches z5_mirror --realsense-zoom)")
+    ap.add_argument("--zoom", type=float, default=1.5, help="initial crop zoom (matches dex5s_mirror --realsense-zoom)")
     ap.add_argument("--serial", type=str, default="", help="optional RealSense serial number")
     args = ap.parse_args()
 
@@ -187,7 +187,7 @@ def main() -> None:
             root.destroy()
         except Exception:
             pass
-        print(f"[realsense_preview] closed (use --realsense-zoom {state['zoom']:.1f} in z5_mirror.py).", flush=True)
+        print(f"[realsense_preview] closed (use --realsense-zoom {state['zoom']:.1f} in dex5s_mirror.py).", flush=True)
 
 
 if __name__ == "__main__":
